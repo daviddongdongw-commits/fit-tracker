@@ -1,0 +1,2183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FitLog · 健身训练记录</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --bg2: #1a1a24;
+    --bg3: #24243a;
+    --accent: #6c5ce7;
+    --accent2: #a29bfe;
+    --accent3: #fd79a8;
+    --green: #00b894;
+    --orange: #fdcb6e;
+    --red: #e17055;
+    --text: #f0f0f5;
+    --text2: #a0a0b8;
+    --text3: #6c6c80;
+    --radius: 14px;
+    --shadow: 0 4px 24px rgba(0,0,0,.4);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    padding-bottom: 80px;
+  }
+
+  /* 顶部栏 */
+  .top-bar {
+    position: sticky; top:0; z-index:100;
+    background: linear-gradient(135deg, var(--accent), #4834d4);
+    padding: 8px 16px;
+    text-align: center;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: .5px;
+    box-shadow: 0 2px 12px rgba(108,92,231,.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .top-bar small { font-size:10px; opacity:.7; font-weight:400; display:inline; }
+
+  /* 页面容器 */
+  .page { display:none; padding:16px; animation: fadeIn .3s; }
+  .page.active { display:block; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
+
+  /* 底部导航 */
+  .bottom-nav {
+    position: fixed; bottom:0; left:0; right:0; z-index:100;
+    background: var(--bg2);
+    border-top: 1px solid rgba(255,255,255,.06);
+    display: flex;
+    padding: 6px 0 env(safe-area-inset-bottom, 8px);
+  }
+  .nav-item {
+    flex:1; display:flex; flex-direction:column; align-items:center;
+    padding: 8px 0; cursor:pointer; transition:.2s;
+    color: var(--text3);
+    font-size: 10px; gap:3px;
+    border:none; background:none; outline:none;
+  }
+  .nav-item.active { color: var(--accent2); }
+  .nav-item .icon { font-size:22px; }
+
+  /* 卡片 */
+  .card {
+    background: var(--bg2);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid rgba(255,255,255,.04);
+  }
+  .card-title {
+    font-size:15px; font-weight:700; margin-bottom:12px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .card-title .dot { width:8px;height:8px;border-radius:50%; }
+
+  /* 按钮 */
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:6px;
+    padding: 12px 24px;
+    border:none; border-radius:10px;
+    font-size:15px; font-weight:600;
+    cursor:pointer; transition:.2s;
+    outline:none;
+  }
+  .btn:active { transform:scale(.96); }
+  .btn-primary { background:var(--accent); color:#fff; }
+  .btn-primary:hover { background:#7f70f0; }
+  .btn-success { background:var(--green); color:#fff; }
+  .btn-danger { background:var(--red); color:#fff; }
+  .btn-outline {
+    background:transparent; border:1.5px solid var(--accent);
+    color:var(--accent2);
+  }
+  .btn-full { width:100%; }
+  .btn-sm { padding:8px 14px; font-size:13px; border-radius:8px; }
+
+  /* 输入 */
+  .input-group { margin-bottom:14px; }
+  .input-group label {
+    display:block; font-size:13px; color:var(--text2);
+    margin-bottom:6px; font-weight:500;
+  }
+  .input-group input, .input-group select {
+    width:100%; padding:12px 14px;
+    background:var(--bg3); border:1.5px solid rgba(255,255,255,.08);
+    border-radius:10px; color:var(--text);
+    font-size:15px; outline:none;
+    transition:.2s;
+  }
+  .input-group input:focus, .input-group select:focus {
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(108,92,231,.2);
+  }
+  .input-group select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a0a0b8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
+
+  /* 月历网格 */
+  .cal-header {
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .cal-header .cal-title { font-size:16px; font-weight:700; }
+  .cal-header button {
+    background:var(--bg3); border:none; color:var(--text2);
+    width:32px; height:32px; border-radius:50%;
+    font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .cal-header button:active { background:var(--accent); color:#fff; }
+  .cal-weekdays {
+    display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
+    margin-bottom:4px; text-align:center;
+  }
+  .cal-weekdays span {
+    font-size:11px; color:var(--text3); font-weight:600; padding:4px 0;
+  }
+  .cal-grid {
+    display:grid; grid-template-columns:repeat(7,1fr); gap:3px;
+  }
+  .cal-day {
+    aspect-ratio:1; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    border-radius:10px; font-size:13px; font-weight:600;
+    background:var(--bg3); cursor:pointer;
+    border:1.5px solid transparent;
+    transition:.15s; position:relative;
+  }
+  .cal-day:active { transform:scale(.92); }
+  .cal-day.empty { background:transparent; cursor:default; }
+  .cal-day.today { border-color:var(--accent); background:rgba(108,92,231,.15); }
+  .cal-day.selected { border-color:var(--accent3); background:rgba(253,121,168,.18); box-shadow:0 0 12px rgba(253,121,168,.3); }
+  .cal-day.has-plan .cal-dot {
+    position:absolute; bottom:3px;
+    display:flex; gap:1px;
+  }
+  .cal-day .cal-dot-dot {
+    width:4px; height:4px; border-radius:50%;
+  }
+  .cal-day .cal-parts {
+    font-size:7px; color:var(--text2); margin-top:1px;
+    line-height:1; max-width:100%; overflow:hidden;
+    text-overflow:ellipsis; white-space:nowrap;
+  }
+  .cal-day .cal-trained {
+    position:absolute; top:2px; right:3px;
+    font-size:8px;
+  }
+
+  /* 动作标签 */
+  .tag-list { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .tag {
+    padding:8px 14px; border-radius:20px;
+    background:var(--bg3); font-size:13px;
+    cursor:pointer; transition:.2s;
+    border:1.5px solid transparent;
+    white-space: nowrap;
+  }
+  .tag:active { transform:scale(.95); }
+  .tag.selected { border-color:var(--accent); background:rgba(108,92,231,.2); color:var(--accent2); }
+
+  /* 组数记录行 */
+  .set-row {
+    display:grid; grid-template-columns: 40px 1fr 1fr 1fr 36px;
+    gap:8px; align-items:center;
+    padding:8px 0;
+    border-bottom:1px solid rgba(255,255,255,.04);
+    font-size:13px;
+  }
+  .set-row .set-num {
+    width:30px;height:30px;border-radius:50%;
+    background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700; font-size:12px;
+  }
+  .set-row input {
+    background:var(--bg3); border:1px solid rgba(255,255,255,.06);
+    border-radius:8px; padding:8px; color:var(--text);
+    font-size:14px; width:100%; text-align:center; outline:none;
+  }
+  .set-row input:focus { border-color:var(--accent); }
+  .set-row .del-set {
+    background:none; border:none; color:var(--red);
+    font-size:18px; cursor:pointer; padding:4px;
+  }
+
+  /* 统计数字 */
+  .stat-row { display:flex; gap:10px; margin-bottom:14px; }
+  .stat-box {
+    flex:1; background:var(--bg3); border-radius:12px;
+    padding:14px 10px; text-align:center;
+  }
+  .stat-box .val { font-size:24px; font-weight:800; color:var(--accent2); }
+  .stat-box .lbl { font-size:11px; color:var(--text2); margin-top:2px; }
+
+  /* 历史记录列表 */
+  .history-item {
+    display:flex; align-items:center; gap:12px;
+    padding:14px; background:var(--bg2);
+    border-radius:12px; margin-bottom:10px;
+    cursor:pointer; transition:.2s;
+    border:1px solid rgba(255,255,255,.04);
+  }
+  .history-item:active { transform:scale(.98); }
+  .history-item .h-icon {
+    width:44px;height:44px;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:22px; flex-shrink:0;
+  }
+  .history-item .h-info { flex:1; }
+  .history-item .h-date { font-size:12px; color:var(--text2); }
+  .history-item .h-title { font-size:15px; font-weight:600; margin-top:2px; }
+  .history-item .h-sub { font-size:12px; color:var(--text2); margin-top:2px; }
+  .history-item .h-arrow { color:var(--text3); font-size:16px; }
+
+  /* 详情弹窗 */
+  .modal-overlay {
+    position:fixed;top:0;left:0;right:0;bottom:0;
+    background:rgba(0,0,0,.6); z-index:200;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .modal-overlay.show { display:flex; }
+  .modal-content {
+    background:var(--bg2); border-radius:20px 20px 0 0;
+    width:100%; max-width:480px; max-height:85vh;
+    overflow-y:auto; padding:24px 20px 30px;
+    animation: slideUp .3s;
+  }
+  @keyframes slideUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .modal-content .modal-handle {
+    width:40px;height:4px;border-radius:2px;
+    background:var(--text3); margin:0 auto 16px;
+  }
+  .modal-content h3 { font-size:18px; margin-bottom:16px; }
+
+  /* 进度条 */
+  .progress-bar {
+    height:6px; background:var(--bg3); border-radius:3px;
+    overflow:hidden; margin-top:6px;
+  }
+  .progress-bar .fill {
+    height:100%; border-radius:3px;
+    background:linear-gradient(90deg, var(--accent), var(--accent3));
+    transition: width .5s;
+  }
+
+  /* 自定义动作管理 */
+  .action-item {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px; background:var(--bg3);
+    border-radius:10px; margin-bottom:8px;
+  }
+  .action-item .a-name { font-size:14px; font-weight:500; }
+  .action-item .a-part { font-size:11px; color:var(--text2); margin-top:2px; }
+  .action-item .a-del {
+    background:none; border:none; color:var(--red);
+    font-size:13px; cursor:pointer; padding:4px 8px;
+  }
+
+  /* 空状态 */
+  .empty-state {
+    text-align:center; padding:40px 20px; color:var(--text3);
+  }
+  .empty-state .icon { font-size:48px; margin-bottom:12px; }
+  .empty-state p { font-size:14px; }
+
+  /* 计时器 */
+  .timer-display {
+    font-size:42px; font-weight:800; text-align:center;
+    font-variant-numeric:tabular-nums;
+    color:var(--accent2);
+    margin:10px 0;
+  }
+  .timer-controls { display:flex; gap:10px; justify-content:center; margin-bottom:14px; }
+
+  /* 部位颜色 */
+  .part-chest { background:rgba(108,92,231,.2); color:#a29bfe; }
+  .part-back { background:rgba(0,184,148,.2); color:#55efc4; }
+  .part-leg { background:rgba(253,121,168,.2); color:#fd79a8; }
+  .part-shoulder { background:rgba(253,203,110,.2); color:#ffeaa7; }
+  .part-bicep { background:rgba(116,185,255,.2); color:#74b9ff; }
+  .part-tricep { background:rgba(225,112,85,.2); color:#fab1a0; }
+  .part-cardio { background:rgba(162,155,254,.2); color:#dfe6e9; }
+
+  /* 进度提升提示 */
+  .tip-box {
+    background: linear-gradient(135deg, rgba(108,92,231,.15), rgba(253,121,168,.1));
+    border:1px solid rgba(108,92,231,.3);
+    border-radius:12px; padding:14px; margin-bottom:12px;
+  }
+  .tip-box .tip-title { font-size:13px; font-weight:700; color:var(--accent2); margin-bottom:4px; }
+  .tip-box .tip-text { font-size:12px; color:var(--text2); line-height:1.5; }
+
+  /* 趋势页 */
+  .trend-select {
+    width:100%; padding:12px 14px;
+    background:var(--bg3); border:1.5px solid rgba(255,255,255,.08);
+    border-radius:10px; color:var(--text);
+    font-size:15px; outline:none;
+    appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a0a0b8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 14px center;
+  }
+  .trend-select:focus {
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(108,92,231,.2);
+  }
+  .trend-chart-wrap {
+    position:relative;
+    background:var(--bg3);
+    border-radius:12px;
+    padding:16px 12px 12px;
+    min-height:220px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .trend-chart-wrap canvas {
+    width:100% !important;
+    height:200px !important;
+  }
+  .trend-empty {
+    text-align:center;
+    color:var(--text3);
+    font-size:13px;
+  }
+  .trend-empty .icon { font-size:36px; margin-bottom:8px; }
+  .trend-stats-grid {
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .trend-stat-card {
+    background:var(--bg3);
+    border-radius:12px;
+    padding:14px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .trend-stat-card .ts-icon {
+    font-size:24px;
+    flex-shrink:0;
+  }
+  .trend-stat-card .ts-info {}
+  .trend-stat-card .ts-label {
+    font-size:11px;
+    color:var(--text2);
+  }
+  .trend-stat-card .ts-value {
+    font-size:18px;
+    font-weight:800;
+    color:var(--accent2);
+    margin-top:2px;
+  }
+
+  /* 训练中提示横幅 */
+  .training-banner {
+    position:fixed; top:42px; left:0; right:0; z-index:99;
+    background:linear-gradient(90deg, rgba(108,92,231,.92), rgba(253,121,168,.85));
+    color:#fff; padding:8px 14px;
+    display:none; align-items:center; justify-content:space-between;
+    font-size:12px; font-weight:600;
+    box-shadow:0 2px 10px rgba(108,92,231,.3);
+    cursor:pointer;
+  }
+  .training-banner.show { display:flex; }
+  .training-banner .tb-info { display:flex; align-items:center; gap:6px; }
+  .training-banner .tb-pulse {
+    width:8px; height:8px; border-radius:50%; background:#fdcb6e;
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse {
+    0%,100%{opacity:1;transform:scale(1)}
+    50%{opacity:.5;transform:scale(1.4)}
+  }
+
+  /* 滚动条 */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--bg3); border-radius:2px; }
+</style>
+</head>
+<body>
+
+<!-- 顶部栏 -->
+<div class="top-bar" id="topBar">
+  💪 FitLog
+  <small>记录每一次突破</small>
+</div>
+
+<!-- 训练中提示横幅 -->
+<div class="training-banner" id="trainingBanner" onclick="resumeTraining()">
+  <div class="tb-info">
+    <div class="tb-pulse"></div>
+    <span id="bannerText">训练进行中...</span>
+  </div>
+  <span style="font-size:11px;opacity:.85;">点击继续 ›</span>
+</div>
+
+<!-- ====== 页面1：首页/开始训练 ====== -->
+<div class="page active" id="pageHome">
+  <!-- 今日状态 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--green)"></span> 今日训练</div>
+    <div id="todayInfo"></div>
+  </div>
+
+  <!-- 本月计划日历 -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--accent)"></span> 本月计划
+    </div>
+    <div class="cal-header">
+      <button onclick="changeMonth(-1)">‹</button>
+      <span class="cal-title" id="calTitle">2025年1月</span>
+      <button onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="cal-weekdays">
+      <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <!-- 选中日期后的操作栏 -->
+    <div id="dayActionBar" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);">
+      <div id="dayActionInfo" style="font-size:13px;color:var(--text2);margin-bottom:10px;text-align:center;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" style="flex:1;" onclick="startTrainingForSelectedDay()">🏋️ 开始训练</button>
+        <button class="btn btn-outline" style="flex:1;" onclick="editSelectedDayPlan()">✏️ 编辑计划</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 快速统计 -->
+  <div class="stat-row" id="homeStats"></div>
+
+  <!-- 开始训练按钮 -->
+  <button class="btn btn-primary btn-full" style="font-size:18px;padding:16px;" onclick="startNewSession()">
+    🏋️ 开始训练
+  </button>
+  <div style="height:10px"></div>
+  <button class="btn btn-outline btn-full" onclick="startCardioSession()">
+    🏃 开始有氧
+  </button>
+</div>
+
+<!-- ====== 页面2：训练中 ====== -->
+<div class="page" id="pageTraining">
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--accent3)"></span>
+      <span id="trainingTitle">训练进行中</span>
+    </div>
+    <!-- 计时器 -->
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <div class="timer-controls">
+      <button class="btn btn-sm btn-primary" onclick="toggleTimer()">⏱ 开始计时</button>
+      <button class="btn btn-sm btn-danger" onclick="finishTraining()">✅ 结束训练</button>
+    </div>
+  </div>
+
+  <!-- 选择训练部位 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--orange)"></span> 训练部位</div>
+    <div class="tag-list" id="partTags"></div>
+  </div>
+
+  <!-- 选择/新增动作 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--green)"></span> 训练动作</div>
+    <div class="tag-list" id="exerciseTags"></div>
+    <div class="input-group" style="margin-top:8px;">
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="customExercise" placeholder="自定义动作名称..." style="flex:1">
+        <button class="btn btn-sm btn-outline" onclick="addCustomExercise()">添加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 组数记录 -->
+  <div class="card" id="setsCard" style="display:none;">
+    <div class="card-title">
+      <span class="dot" style="background:var(--accent)"></span>
+      <span id="currentExName">卧推</span>
+      <span style="flex:1"></span>
+      <button class="btn btn-sm btn-primary" onclick="addSet()">+ 加一组</button>
+    </div>
+    <div style="font-size:11px;color:var(--text3);display:grid;grid-template-columns:40px 1fr 1fr 1fr 36px;gap:8px;padding:0 0 6px;">
+      <span>组</span><span>重量(kg)</span><span>次数</span><span>备注</span><span></span>
+    </div>
+    <div id="setsList"></div>
+    <button class="btn btn-sm btn-success btn-full" style="margin-top:10px;" onclick="saveExerciseSets()">💾 保存此动作</button>
+  </div>
+
+  <!-- 已完成的动作 -->
+  <div id="completedExercises"></div>
+</div>
+
+<!-- ====== 页面3：历史记录 ====== -->
+<div class="page" id="pageHistory">
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--accent)"></span> 训练统计</div>
+    <div class="stat-row" id="historyStats"></div>
+  </div>
+
+  <!-- 进度提示 -->
+  <div id="progressTips"></div>
+
+  <div class="card-title" style="padding:0 4px 10px;"><span class="dot" style="background:var(--green)"></span> 训练记录</div>
+  <div id="historyList"></div>
+</div>
+
+<!-- ====== 页面4：设置 ====== -->
+<div class="page" id="pageSettings">
+  <!-- 训练计划管理 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--orange)"></span> 训练计划管理</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">在首页日历中点击具体日期即可配置该天的训练部位</p>
+    <button class="btn btn-outline btn-full" onclick="applyWeeklyTemplate()" style="margin-bottom:8px;">📋 按周模板批量填充本月</button>
+    <button class="btn btn-danger btn-sm btn-full" onclick="clearMonthPlan()">🗑️ 清空本月计划</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--accent)"></span> 自定义训练动作</div>
+    <div class="input-group">
+      <label>动作名称</label>
+      <input type="text" id="newActionName" placeholder="例如：哑铃飞鸟">
+    </div>
+    <div class="input-group">
+      <label>所属部位</label>
+      <select id="newActionPart">
+        <option value="胸">胸</option>
+        <option value="背">背</option>
+        <option value="腿">腿</option>
+        <option value="肩">肩</option>
+        <option value="二头">二头</option>
+        <option value="三头">三头</option>
+        <option value="有氧">有氧</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-full" onclick="addNewAction()">添加动作</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--accent3)"></span> 当前动作库</div>
+    <div id="actionList"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--red)"></span> 数据管理</div>
+    <button class="btn btn-outline btn-full" onclick="exportData()" style="margin-bottom:8px;">📦 导出数据</button>
+    <button class="btn btn-outline btn-full" onclick="document.getElementById('importFile').click()" style="margin-bottom:8px;">📥 导入数据</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="btn btn-danger btn-full" onclick="clearAllData()">🗑️ 清空所有数据</button>
+  </div>
+</div>
+
+<!-- ====== 页面5：趋势 ====== -->
+<div class="page" id="pageTrend">
+  <!-- 动作选择 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--accent2)"></span> 动作趋势</div>
+    <select class="trend-select" id="trendExerciseSelect" onchange="onTrendExerciseChange()">
+      <option value="">选择动作查看趋势</option>
+    </select>
+  </div>
+
+  <!-- 图表 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--accent3)"></span> 重量趋势</div>
+    <div class="trend-chart-wrap" id="trendChartWrap">
+      <div class="trend-empty" id="trendChartEmpty">
+        <div class="icon">📈</div>
+        <p>选择动作查看重量趋势</p>
+      </div>
+      <canvas id="trendCanvas" style="display:none;"></canvas>
+    </div>
+  </div>
+
+  <!-- 统计数据 -->
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--orange)"></span> 数据统计</div>
+    <div id="trendStatsContent">
+      <div class="trend-empty" style="padding:20px 0;">
+        <div class="icon">📊</div>
+        <p>选择动作查看详细统计</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 详情弹窗 ====== -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal-content">
+    <div class="modal-handle"></div>
+    <h3 id="modalTitle">训练详情</h3>
+    <div id="modalBody"></div>
+    <button class="btn btn-outline btn-full" style="margin-top:16px;" onclick="closeModal()">关闭</button>
+  </div>
+</div>
+
+<!-- ====== 日期训练计划编辑弹窗 ====== -->
+<div class="modal-overlay" id="dayModal">
+  <div class="modal-content">
+    <div class="modal-handle"></div>
+    <h3 id="dayModalTitle">📅 1月15日</h3>
+    <div style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <label style="font-size:14px;display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="dayIsRest" onchange="toggleRestDay()" style="width:18px;height:18px;accent-color:var(--accent);">
+          <span>休息日</span>
+        </label>
+      </div>
+      <div id="dayPartSelector" style="margin-bottom:14px;">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:8px;">选择训练部位（可多选）：</p>
+        <div class="tag-list" id="dayPartTags"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeDayModal()">取消</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="confirmDayEdit()">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ====== 周模板弹窗 ====== -->
+<div class="modal-overlay" id="templateModal">
+  <div class="modal-content">
+    <div class="modal-handle"></div>
+    <h3>📋 按周模板批量填充</h3>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:16px;">配置一周 7 天的训练部位模板，自动填充到本月所有日期</p>
+    <div id="templateEditor"></div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeTemplateModal()">取消</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="applyTemplate()">应用</button>
+    </div>
+  </div>
+</div>
+
+<!-- 底部导航 -->
+<div class="bottom-nav">
+  <button class="nav-item active" onclick="switchPage('pageHome',this)">
+    <span class="icon">🏠</span>首页
+  </button>
+  <button class="nav-item" onclick="switchPage('pageHistory',this)">
+    <span class="icon">📋</span>记录
+  </button>
+  <button class="nav-item" onclick="switchPage('pageTrend',this)">
+    <span class="icon">📈</span>趋势
+  </button>
+  <button class="nav-item" onclick="switchPage('pageSettings',this)">
+    <span class="icon">⚙️</span>设置
+  </button>
+</div>
+
+<script>
+// ======================== 数据层 ========================
+
+const DEFAULT_EXERCISES = {
+  '胸': ['平板卧推', '上斜卧推', '下斜卧推', '哑铃飞鸟', '器械夹胸', '俯卧撑'],
+  '背': ['引体向上', '杠铃划船', '哑铃划船', '高位下拉', '坐姿划船', '直臂下压'],
+  '腿': ['深蹲', '腿举', '腿弯举', '腿屈伸', '箭步蹲', '小腿提踵'],
+  '肩': ['哑铃推举', '杠铃推举', '侧平举', '前平举', '面拉', '耸肩'],
+  '二头': ['杠铃弯举', '哑铃弯举', '锤式弯举', '集中弯举', '牧师椅弯举'],
+  '三头': ['绳索下压', '窄距卧推', '仰卧臂屈伸', '过头臂屈伸', '双杠臂屈伸'],
+  '有氧': ['跑步', '椭圆机', '动感单车', '跳绳', '划船机', '爬楼梯']
+};
+
+const DEFAULT_PLAN = [
+  { name:'周一', parts:'胸+三头', selectedParts:['胸','三头'], isRest:false },
+  { name:'周二', parts:'背+二头', selectedParts:['背','二头'], isRest:false },
+  { name:'周三', parts:'腿+肩',   selectedParts:['腿','肩'],   isRest:false },
+  { name:'周四', parts:'胸+三头', selectedParts:['胸','三头'], isRest:false },
+  { name:'周五', parts:'背+二头', selectedParts:['背','二头'], isRest:false },
+  { name:'周六', parts:'腿+肩',   selectedParts:['腿','肩'],   isRest:false },
+  { name:'周日', parts:'休息',     selectedParts:[],           isRest:true }
+];
+
+// 部位对应的圆点颜色
+const PART_DOT_COLORS = {
+  '胸':'#6c5ce7','背':'#00b894','腿':'#fd79a8','肩':'#fdcb6e',
+  '二头':'#74b9ff','三头':'#e17055','有氧':'#a29bfe'
+};
+
+const PART_ICONS = {
+  '胸':'🏋️','背':'💪','腿':'🦵','肩':'🙆','二头':'💪','三头':'🦾','有氧':'🏃'
+};
+
+const PART_COLORS = {
+  '胸':'part-chest','背':'part-back','腿':'part-leg','肩':'part-shoulder',
+  '二头':'part-bicep','三头':'part-tricep','有氧':'part-cardio'
+};
+
+// 从 localStorage 读取或初始化
+function loadData() {
+  return JSON.parse(localStorage.getItem('fitlog_data') || 'null') || { sessions:[], customActions:{}, version:1 };
+}
+function saveData(data) {
+  localStorage.setItem('fitlog_data', JSON.stringify(data));
+}
+function getActions() {
+  const data = loadData();
+  // 合并默认和自定义
+  const merged = {};
+  for (const k in DEFAULT_EXERCISES) merged[k] = [...DEFAULT_EXERCISES[k]];
+  for (const k in data.customActions) {
+    if (!merged[k]) merged[k] = [];
+    data.customActions[k].forEach(a => { if (!merged[k].includes(a)) merged[k].push(a); });
+  }
+  return merged;
+}
+
+// 月度训练计划：按 "YYYY-MM" 键存储
+function getMonthPlan(year, month) {
+  const key = 'fitlog_month_' + year + '-' + String(month+1).padStart(2,'0');
+  const saved = localStorage.getItem(key);
+  if (saved) { try { return JSON.parse(saved); } catch(e) {} }
+  return {};  // { "15": { isRest:false, parts:["胸","三头"] }, "16": {...} }
+}
+function saveMonthPlan(year, month, plan) {
+  const key = 'fitlog_month_' + year + '-' + String(month+1).padStart(2,'0');
+  localStorage.setItem(key, JSON.stringify(plan));
+}
+
+// 所有可能的部位列表
+const ALL_PARTS = ['胸','背','腿','肩','二头','三头','有氧'];
+
+// ======================== 全局状态 ========================
+
+let calYear, calMonth;       // 日历当前显示的年月
+let editingDayParts = [];    // 当前编辑天的选中部位
+let editingDayKey = '';      // 当前编辑天的 key（如 "15"）
+let selectedCalDay = null;   // 日历中选中的日期（数字），null 表示未选
+
+let currentSession = null;    // 当前训练会话
+let timerInterval = null;
+let timerSeconds = 0;
+let timerRunning = false;
+let selectedPart = '';
+let selectedExercise = '';
+let currentSets = [];
+let setCounter = 0;
+
+// ======================== 训练状态持久化 ========================
+
+// 保存训练状态到 sessionStorage
+function saveTrainingState() {
+  if (!currentSession) return;
+  const state = {
+    session: currentSession,
+    timerSeconds,
+    timerRunning,
+    selectedPart,
+    selectedExercise,
+    currentSets,
+    setCounter,
+    trainingTitle: document.getElementById('trainingTitle').textContent
+  };
+  sessionStorage.setItem('fitlog_training', JSON.stringify(state));
+  updateTrainingBanner();
+}
+
+// 从 sessionStorage 恢复训练状态
+function restoreTrainingState() {
+  const saved = sessionStorage.getItem('fitlog_training');
+  if (!saved) return false;
+  try {
+    const state = JSON.parse(saved);
+    if (!state.session || !state.session.exercises) return false;
+
+    currentSession = state.session;
+    timerSeconds = state.timerSeconds || 0;
+    timerRunning = false; // 计时器不自动恢复运行，需要用户手动继续
+    selectedPart = state.selectedPart || '';
+    selectedExercise = state.selectedExercise || '';
+    currentSets = state.currentSets || [];
+    setCounter = state.setCounter || 0;
+
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// 清除训练状态
+function clearTrainingState() {
+  sessionStorage.removeItem('fitlog_training');
+  updateTrainingBanner();
+}
+
+// 更新训练中提示横幅
+function updateTrainingBanner() {
+  const banner = document.getElementById('trainingBanner');
+  const bannerText = document.getElementById('bannerText');
+  const saved = sessionStorage.getItem('fitlog_training');
+
+  if (saved && currentSession === null) {
+    // 有保存的训练状态但当前未在训练页
+    try {
+      const state = JSON.parse(saved);
+      const exCount = state.session.exercises.length;
+      const parts = state.session.parts.join('+');
+      bannerText.textContent = `训练进行中 · ${parts} · ${exCount}个动作`;
+      banner.classList.add('show');
+    } catch(e) {}
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+// 点击横幅恢复训练
+function resumeTraining() {
+  if (restoreTrainingState()) {
+    // 切换到训练页并恢复 UI
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('pageTraining').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+    // 恢复 UI 状态
+    const state = JSON.parse(sessionStorage.getItem('fitlog_training'));
+    document.getElementById('timerDisplay').textContent = formatTime(timerSeconds);
+    document.getElementById('trainingTitle').textContent = state.trainingTitle || '训练进行中';
+
+    if (currentSession.exercises.length > 0) {
+      renderCompletedExercises();
+    } else {
+      document.getElementById('completedExercises').innerHTML = '';
+    }
+
+    // 恢复当前正在编辑的动作
+    if (selectedExercise) {
+      document.getElementById('currentExName').textContent = selectedExercise;
+      document.getElementById('setsCard').style.display = 'block';
+      renderSets();
+    } else {
+      document.getElementById('setsCard').style.display = 'none';
+    }
+
+    renderPartTags();
+    renderExerciseTags();
+    updateTrainingBanner();
+
+    // 更新计时器按钮
+    updateTimerBtn();
+  }
+}
+
+// 判断是否有保存的训练状态
+function hasSavedTraining() {
+  return !!sessionStorage.getItem('fitlog_training');
+}
+
+// 同步输入框的当前值到 currentSets（防止用户没点 onchange 就切走）
+function syncCurrentSetInputs() {
+  if (currentSets.length === 0) return;
+  const rows = document.querySelectorAll('#setsList .set-row');
+  rows.forEach((row, i) => {
+    if (i < currentSets.length) {
+      const inputs = row.querySelectorAll('input');
+      if (inputs[0]) currentSets[i].weight = inputs[0].value;
+      if (inputs[1]) currentSets[i].reps = inputs[1].value;
+      if (inputs[2]) currentSets[i].note = inputs[2].value;
+    }
+  });
+}
+
+// ======================== 页面切换 ========================
+
+function switchPage(pageId, navBtn) {
+  // 如果正在训练中切走，先保存状态
+  if (currentSession && pageId !== 'pageTraining') {
+    // 先同步当前输入框的值到 currentSets
+    syncCurrentSetInputs();
+    saveTrainingState();
+    // 暂停计时器但不重置
+    if (timerRunning) {
+      clearInterval(timerInterval);
+      timerRunning = false;
+    }
+    currentSession = null; // 临时置空，表示不在训练页
+  }
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  if (navBtn) navBtn.classList.add('active');
+
+  // 如果切回训练页，恢复状态
+  if (pageId === 'pageTraining' && !currentSession && hasSavedTraining()) {
+    resumeTraining();
+    return;
+  }
+
+  // 刷新页面数据
+  if (pageId === 'pageHome') renderHome();
+  if (pageId === 'pageHistory') renderHistory();
+  if (pageId === 'pageSettings') renderSettings();
+  if (pageId === 'pageTrend') renderTrend();
+
+  // 更新横幅显示
+  updateTrainingBanner();
+}
+
+// ======================== 首页渲染 ========================
+
+function renderHome() {
+  const data = loadData();
+  const today = new Date();
+
+  // 初始化日历月份为当前月
+  if (calYear === undefined) {
+    calYear = today.getFullYear();
+    calMonth = today.getMonth();
+  }
+
+  // 今日信息
+  const todayEl = document.getElementById('todayInfo');
+  const todayStr = formatDate(today);
+  const sessionsToday = data.sessions.filter(s => s.date === todayStr);
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  const todayPlan = monthPlan[String(today.getDate())];
+
+  if (sessionsToday.length > 0) {
+    todayEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <span style="font-size:14px;color:var(--green);">✅ 今天已训练 ${sessionsToday.length} 次</span>
+      </div>
+      ${sessionsToday.map(s => `<div style="font-size:12px;color:var(--text2);margin-bottom:4px;">${s.parts.join('、')} — ${s.exercises.length}个动作 — ${formatDuration(s.duration)}</div>`).join('')}
+    `;
+  } else if (todayPlan && !todayPlan.isRest && todayPlan.parts && todayPlan.parts.length > 0) {
+    todayEl.innerHTML = `
+      <div style="font-size:14px;color:var(--text2);margin-bottom:4px;">今日计划</div>
+      <div style="font-size:16px;font-weight:600;">${todayPlan.parts.join(' + ')}</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">点击日历中的日期可修改计划</div>
+    `;
+  } else {
+    todayEl.innerHTML = `
+      <div style="font-size:14px;color:var(--text2);">今天还没有安排训练计划</div>
+      <div style="font-size:11px;color:var(--text3);margin-top:4px;">点击日历中的日期来配置</div>
+    `;
+  }
+
+  // 渲染日历
+  renderCalendar();
+
+  // 快速统计
+  const statsEl = document.getElementById('homeStats');
+  const totalSessions = data.sessions.length;
+  const thisWeek = data.sessions.filter(s => {
+    const d = new Date(s.date);
+    const diff = (today - d) / 86400000;
+    return diff < 7;
+  }).length;
+  const totalExercises = data.sessions.reduce((sum,s) => sum + s.exercises.length, 0);
+  statsEl.innerHTML = `
+    <div class="stat-box"><div class="val">${totalSessions}</div><div class="lbl">总训练次数</div></div>
+    <div class="stat-box"><div class="val">${thisWeek}</div><div class="lbl">本周训练</div></div>
+    <div class="stat-box"><div class="val">${totalExercises}</div><div class="lbl">总动作数</div></div>
+  `;
+}
+
+// ======================== 日历渲染 ========================
+
+function changeMonth(delta) {
+  calMonth += delta;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderHome();
+}
+
+function renderCalendar() {
+  const data = loadData();
+  const today = new Date();
+  const todayStr = formatDate(today);
+
+  // 月份标题
+  document.getElementById('calTitle').textContent = `${calYear}年${calMonth+1}月`;
+
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  // 该月第一天是星期几（0=日, 1=一 ...）
+  let firstDayWeek = new Date(calYear, calMonth, 1).getDay();
+  // 转为周一开始：0=一, 6=日
+  firstDayWeek = (firstDayWeek + 6) % 7;
+
+  // 已训练的日期集合（只看当月）
+  const trainedDates = new Set();
+  data.sessions.forEach(s => {
+    if (s.date.startsWith(`${calYear}-${String(calMonth+1).padStart(2,'0')}-`)) {
+      trainedDates.add(parseInt(s.date.split('-')[2]));
+    }
+  });
+
+  const gridEl = document.getElementById('calGrid');
+  let html = '';
+
+  // 前置空白
+  for (let i = 0; i < firstDayWeek; i++) {
+    html += '<div class="cal-day empty"></div>';
+  }
+
+  // 日期格子
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = String(d);
+    const plan = monthPlan[key];
+    const isToday = (calYear === today.getFullYear() && calMonth === today.getMonth() && d === today.getDate());
+    const hasPlan = plan && !plan.isRest && plan.parts && plan.parts.length > 0;
+    const isRest = plan && plan.isRest;
+    const isTrained = trainedDates.has(d);
+    const isSelected = (selectedCalDay === d);
+
+    let cls = 'cal-day';
+    if (isToday) cls += ' today';
+    if (hasPlan) cls += ' has-plan';
+    if (isSelected) cls += ' selected';
+
+    // 部位文字
+    let partsText = '';
+    if (hasPlan) {
+      partsText = plan.parts.join('+');
+    } else if (isRest) {
+      partsText = '休息';
+    }
+
+    // 部位小圆点
+    let dotsHtml = '';
+    if (hasPlan && plan.parts) {
+      dotsHtml = '<div class="cal-dot">' + plan.parts.map(p =>
+        `<div class="cal-dot-dot" style="background:${PART_DOT_COLORS[p]||'#6c5ce7'}"></div>`
+      ).join('') + '</div>';
+    }
+
+    // 已训练标记
+    let trainedMark = isTrained ? '<div class="cal-trained">✅</div>' : '';
+
+    html += `
+      <div class="${cls}" onclick="onCalDayClick(${d})">
+        ${trainedMark}
+        <span>${d}</span>
+        ${partsText ? `<div class="cal-parts" style="${isRest?'color:var(--text3);':''}">${partsText}</div>` : '<div class="cal-parts" style="color:var(--text3);">-</div>'}
+        ${dotsHtml}
+      </div>
+    `;
+  }
+
+  gridEl.innerHTML = html;
+
+  // 更新选中日期的操作栏
+  renderDayActionBar();
+}
+
+// ======================== 日历日期点击与选中 ========================
+
+function onCalDayClick(day) {
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  const plan = monthPlan[String(day)];
+  const hasPlan = plan && !plan.isRest && plan.parts && plan.parts.length > 0;
+
+  if (hasPlan) {
+    // 有训练计划的日期 → 选中/取消选中
+    if (selectedCalDay === day) {
+      selectedCalDay = null;  // 再次点击取消选中
+    } else {
+      selectedCalDay = day;
+    }
+    renderCalendar();
+  } else {
+    // 没有训练计划的日期 → 弹出编辑计划弹窗
+    selectedCalDay = null;
+    editCalendarDay(day);
+  }
+}
+
+function renderDayActionBar() {
+  const bar = document.getElementById('dayActionBar');
+  const info = document.getElementById('dayActionInfo');
+
+  if (selectedCalDay === null) {
+    bar.style.display = 'none';
+    return;
+  }
+
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  const plan = monthPlan[String(selectedCalDay)];
+  if (!plan || plan.isRest || !plan.parts || plan.parts.length === 0) {
+    bar.style.display = 'none';
+    selectedCalDay = null;
+    return;
+  }
+
+  const dateStr = `${calYear}年${calMonth+1}月${selectedCalDay}日`;
+  const partsStr = plan.parts.join(' + ');
+
+  // 查看这天是否已有训练记录
+  const data = loadData();
+  const dateIso = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(selectedCalDay).padStart(2,'0')}`;
+  const trainedSessions = data.sessions.filter(s => s.date === dateIso);
+  let trainedInfo = '';
+  if (trainedSessions.length > 0) {
+    trainedInfo = ` · 已训练${trainedSessions.length}次`;
+  }
+
+  info.innerHTML = `<span style="color:var(--accent2);font-weight:600;">${dateStr}</span> · ${partsStr}<span style="color:var(--text3);">${trainedInfo}</span>`;
+  bar.style.display = 'block';
+}
+
+function startTrainingForSelectedDay() {
+  if (selectedCalDay === null) return;
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  const plan = monthPlan[String(selectedCalDay)];
+  if (!plan || !plan.parts || plan.parts.length === 0) return;
+
+  // 用选中的日期创建训练会话
+  const trainingDate = new Date(calYear, calMonth, selectedCalDay);
+  startNewSessionForDate(trainingDate, plan.parts);
+}
+
+function editSelectedDayPlan() {
+  if (selectedCalDay === null) return;
+  const day = selectedCalDay;
+  selectedCalDay = null;
+  editCalendarDay(day);
+}
+
+// ======================== 日期训练计划编辑 ========================
+
+function editCalendarDay(day) {
+  editingDayKey = String(day);
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  const plan = monthPlan[editingDayKey];
+
+  editingDayParts = plan && plan.parts ? [...plan.parts] : [];
+  const isRest = plan ? !!plan.isRest : false;
+
+  document.getElementById('dayModalTitle').textContent = `📅 ${calMonth+1}月${day}日`;
+  document.getElementById('dayIsRest').checked = isRest;
+  toggleRestDay();
+  renderDayPartTags();
+  document.getElementById('dayModal').classList.add('show');
+}
+
+function toggleRestDay() {
+  const isRest = document.getElementById('dayIsRest').checked;
+  document.getElementById('dayPartSelector').style.display = isRest ? 'none' : 'block';
+}
+
+function renderDayPartTags() {
+  const el = document.getElementById('dayPartTags');
+  el.innerHTML = ALL_PARTS.map(part => {
+    const selected = editingDayParts.includes(part);
+    return `
+      <div class="tag ${selected?'selected':''} ${PART_COLORS[part]||''}" onclick="toggleDayPart('${part}')">
+        ${PART_ICONS[part]||''} ${part}
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleDayPart(part) {
+  const idx = editingDayParts.indexOf(part);
+  if (idx >= 0) editingDayParts.splice(idx, 1);
+  else editingDayParts.push(part);
+  renderDayPartTags();
+}
+
+function confirmDayEdit() {
+  const isRest = document.getElementById('dayIsRest').checked;
+  if (!isRest && editingDayParts.length === 0) {
+    alert('请至少选择一个训练部位');
+    return;
+  }
+
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  if (isRest) {
+    monthPlan[editingDayKey] = { isRest: true, parts: [] };
+  } else {
+    monthPlan[editingDayKey] = { isRest: false, parts: [...editingDayParts] };
+  }
+  saveMonthPlan(calYear, calMonth, monthPlan);
+  closeDayModal();
+  renderHome();
+}
+
+function closeDayModal() {
+  document.getElementById('dayModal').classList.remove('show');
+}
+
+// ======================== 周模板批量填充 ========================
+
+let templateDays = [[],[],[],[],[],[],[]]; // 7天，每天选中的部位
+
+function applyWeeklyTemplate() {
+  // 用 DEFAULT_PLAN 初始化
+  templateDays = DEFAULT_PLAN.map(d => d.isRest ? [] : [...d.selectedParts]);
+  renderTemplateEditor();
+  document.getElementById('templateModal').classList.add('show');
+}
+
+function renderTemplateEditor() {
+  const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+  const el = document.getElementById('templateEditor');
+  el.innerHTML = dayNames.map((name, i) => {
+    const parts = templateDays[i];
+    const partsText = parts.length === 0 ? '<span style="color:var(--text3)">休息</span>' : parts.map(p => `${PART_ICONS[p]||''}${p}`).join(' + ');
+    return `
+      <div style="padding:10px;background:var(--bg3);border-radius:10px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-weight:700;color:var(--accent2);font-size:14px;">${name}</span>
+          <span style="font-size:12px;">${partsText}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${ALL_PARTS.map(part => {
+            const sel = parts.includes(part);
+            return `<div class="tag ${sel?'selected':''}" style="font-size:11px;padding:4px 10px;" onclick="toggleTemplatePart(${i},'${part}')">${PART_ICONS[part]||''} ${part}</div>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleTemplatePart(dayIdx, part) {
+  const idx = templateDays[dayIdx].indexOf(part);
+  if (idx >= 0) templateDays[dayIdx].splice(idx, 1);
+  else templateDays[dayIdx].push(part);
+  renderTemplateEditor();
+}
+
+function applyTemplate() {
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    // 计算该日期是周几（0=周一 ... 6=周日）
+    const dow = (new Date(calYear, calMonth, d).getDay() + 6) % 7;
+    const tpl = templateDays[dow];
+    const key = String(d);
+    if (tpl.length === 0) {
+      monthPlan[key] = { isRest: true, parts: [] };
+    } else {
+      monthPlan[key] = { isRest: false, parts: [...tpl] };
+    }
+  }
+
+  saveMonthPlan(calYear, calMonth, monthPlan);
+  closeTemplateModal();
+  renderHome();
+  alert('已按周模板填充本月计划！');
+}
+
+function closeTemplateModal() {
+  document.getElementById('templateModal').classList.remove('show');
+}
+
+function clearMonthPlan() {
+  if (!confirm('确定清空本月所有训练计划？')) return;
+  saveMonthPlan(calYear, calMonth, {});
+  renderHome();
+}
+
+// ======================== 设置页中的计划预览（已移除） ========================
+
+// ======================== 训练流程 ========================
+
+function startNewSession() {
+  const today = new Date();
+  const monthPlan = getMonthPlan(today.getFullYear(), today.getMonth());
+  const todayPlan = monthPlan[String(today.getDate())];
+  const parts = (todayPlan && todayPlan.parts && todayPlan.parts.length > 0)
+    ? todayPlan.parts : [];
+  startNewSessionForDate(today, parts);
+}
+
+function startNewSessionForDate(date, presetParts) {
+  const monthPlan = getMonthPlan(date.getFullYear(), date.getMonth());
+  const dayPlan = monthPlan[String(date.getDate())];
+  const dayNames = ['日','一','二','三','四','五','六'];
+
+  currentSession = {
+    id: Date.now(),
+    date: formatDate(date),
+    startTime: new Date().toISOString(),
+    parts: presetParts ? [...presetParts] : [],
+    exercises: [],
+    duration: 0
+  };
+
+  timerSeconds = 0;
+  timerRunning = false;
+  selectedPart = '';
+  selectedExercise = '';
+  currentSets = [];
+  setCounter = 0;
+
+  // 清除日历选中
+  selectedCalDay = null;
+
+  // 切换到训练页
+  document.getElementById('pageHome').classList.remove('active');
+  document.getElementById('pageTraining').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  document.getElementById('timerDisplay').textContent = '00:00';
+  const trainingLabel = (dayPlan && dayPlan.parts && dayPlan.parts.length > 0)
+    ? dayPlan.parts.join('+')
+    : (presetParts && presetParts.length > 0)
+      ? presetParts.join('+')
+      : `${calMonth+1}月${date.getDate()}日`;
+  const dateHint = formatDate(date) === formatDate(new Date()) ? '' : `（${formatDate(date)}）`;
+  document.getElementById('trainingTitle').textContent = `训练进行中 · ${trainingLabel} ${dateHint}`;
+  document.getElementById('setsCard').style.display = 'none';
+  document.getElementById('completedExercises').innerHTML = '';
+
+  renderPartTags();
+  renderExerciseTags();
+}
+
+function startCardioSession() {
+  // 直接按有氧开始
+  currentSession = {
+    id: Date.now(),
+    date: formatDate(new Date()),
+    startTime: new Date().toISOString(),
+    parts: ['有氧'],
+    exercises: [],
+    duration: 0
+  };
+  timerSeconds = 0;
+  timerRunning = false;
+  selectedPart = '有氧';
+  selectedExercise = '';
+  currentSets = [];
+  setCounter = 0;
+
+  document.getElementById('pageHome').classList.remove('active');
+  document.getElementById('pageTraining').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  document.getElementById('timerDisplay').textContent = '00:00';
+  document.getElementById('trainingTitle').textContent = '有氧训练';
+  document.getElementById('setsCard').style.display = 'none';
+  document.getElementById('completedExercises').innerHTML = '';
+
+  renderPartTags();
+  renderExerciseTags();
+}
+
+// 修复 startCardioSession 的按钮 onclick
+// 在 HTML 中有个空格 bug: onclick="start CardioSession()" 需要修复
+// 已在下方 DOMContentLoaded 中修复
+
+// 计时器
+function toggleTimer() {
+  if (timerRunning) {
+    clearInterval(timerInterval);
+    timerRunning = false;
+  } else {
+    timerInterval = setInterval(() => {
+      timerSeconds++;
+      document.getElementById('timerDisplay').textContent = formatTime(timerSeconds);
+    }, 1000);
+    timerRunning = true;
+  }
+  updateTimerBtn();
+}
+function updateTimerBtn() {
+  const btn = document.querySelector('#pageTraining .timer-controls .btn-primary');
+  if (btn) btn.textContent = timerRunning ? '⏸ 暂停计时' : '⏱ 继续计时';
+}
+function formatTime(s) {
+  const m = Math.floor(s/60);
+  const sec = s%60;
+  return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+function formatDuration(seconds) {
+  if (!seconds) return '0分钟';
+  const m = Math.floor(seconds/60);
+  if (m < 60) return `${m}分钟`;
+  return `${Math.floor(m/60)}小时${m%60}分钟`;
+}
+
+// 部位选择
+function renderPartTags() {
+  const actions = getActions();
+  const el = document.getElementById('partTags');
+  el.innerHTML = Object.keys(actions).map(part => `
+    <div class="tag ${selectedPart===part?'selected':''} ${PART_COLORS[part]||''}" onclick="selectPart('${part}')">
+      ${PART_ICONS[part]||''} ${part}
+    </div>
+  `).join('');
+}
+function selectPart(part) {
+  selectedPart = part;
+  if (currentSession && !currentSession.parts.includes(part)) {
+    currentSession.parts.push(part);
+  }
+  selectedExercise = '';
+  document.getElementById('setsCard').style.display = 'none';
+  renderPartTags();
+  renderExerciseTags();
+}
+
+// 动作选择
+function renderExerciseTags() {
+  const actions = getActions();
+  const exercises = actions[selectedPart] || [];
+  const el = document.getElementById('exerciseTags');
+  el.innerHTML = exercises.map(ex => `
+    <div class="tag ${selectedExercise===ex?'selected':''}" onclick="selectExercise('${ex.replace(/'/g,"\\'")}')">
+      ${ex}
+    </div>
+  `).join('');
+}
+function selectExercise(name) {
+  selectedExercise = name;
+  currentSets = [];
+  setCounter = 0;
+  document.getElementById('currentExName').textContent = name;
+  document.getElementById('setsCard').style.display = 'block';
+  document.getElementById('setsList').innerHTML = '';
+  renderExerciseTags();
+  addSet(); // 自动加第一组
+}
+
+function addCustomExercise() {
+  const input = document.getElementById('customExercise');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!selectedPart) { alert('请先选择训练部位'); return; }
+
+  // 保存到自定义动作
+  const data = loadData();
+  if (!data.customActions[selectedPart]) data.customActions[selectedPart] = [];
+  if (!data.customActions[selectedPart].includes(name) && !DEFAULT_EXERCISES[selectedPart]?.includes(name)) {
+    data.customActions[selectedPart].push(name);
+    saveData(data);
+  }
+  input.value = '';
+  renderExerciseTags();
+  selectExercise(name);
+}
+
+// 组数管理
+function addSet() {
+  setCounter++;
+  currentSets.push({ weight:'', reps:'', note:'' });
+  renderSets();
+}
+function removeSet(idx) {
+  currentSets.splice(idx,1);
+  setCounter = currentSets.length;
+  renderSets();
+}
+function renderSets() {
+  const el = document.getElementById('setsList');
+  el.innerHTML = currentSets.map((s,i) => `
+    <div class="set-row">
+      <div class="set-num">${i+1}</div>
+      <input type="number" placeholder="重量" value="${s.weight}" onchange="currentSets[${i}].weight=this.value">
+      <input type="number" placeholder="次数" value="${s.reps}" onchange="currentSets[${i}].reps=this.value">
+      <input type="text" placeholder="备注" value="${s.note}" onchange="currentSets[${i}].note=this.value">
+      <button class="del-set" onclick="removeSet(${i})">×</button>
+    </div>
+  `).join('');
+}
+
+function saveExerciseSets() {
+  if (!selectedExercise || currentSets.length === 0) return;
+  const validSets = currentSets.filter(s => s.weight || s.reps);
+  if (validSets.length === 0) { alert('请至少填写一组数据'); return; }
+
+  currentSession.exercises.push({
+    name: selectedExercise,
+    part: selectedPart,
+    sets: validSets.map((s,i) => ({
+      setNum: i+1,
+      weight: parseFloat(s.weight)||0,
+      reps: parseInt(s.reps)||0,
+      note: s.note||''
+    })),
+    timestamp: new Date().toISOString()
+  });
+
+  // 显示已完成的动作
+  renderCompletedExercises();
+
+  // 重置
+  selectedExercise = '';
+  currentSets = [];
+  setCounter = 0;
+  document.getElementById('setsCard').style.display = 'none';
+  renderExerciseTags();
+
+  // 持久化保存训练状态
+  saveTrainingState();
+}
+
+function renderCompletedExercises() {
+  const el = document.getElementById('completedExercises');
+  el.innerHTML = currentSession.exercises.map((ex,i) => `
+    <div class="card" style="border-left:3px solid var(--accent);">
+      <div class="card-title">
+        <span class="dot" style="background:var(--green)"></span>
+        ${ex.name}
+        <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
+      </div>
+      ${ex.sets.map(s => `
+        <div style="display:flex;gap:12px;font-size:13px;padding:4px 0;color:var(--text2);">
+          <span>第${s.setNum}组</span>
+          ${s.weight?`<span>${s.weight}kg</span>`:''}
+          ${s.reps?`<span>${s.reps}次</span>`:''}
+          ${s.note?`<span style="color:var(--text3)">${s.note}</span>`:''}
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+// 结束训练
+function finishTraining() {
+  if (currentSession.exercises.length === 0) {
+    alert('还没有记录任何训练动作哦！');
+    return;
+  }
+  if (!confirm('确定结束本次训练？')) return;
+
+  if (timerRunning) toggleTimer();
+  currentSession.duration = timerSeconds;
+  currentSession.endTime = new Date().toISOString();
+
+  const data = loadData();
+  data.sessions.push(currentSession);
+  saveData(data);
+
+  currentSession = null;
+  clearTrainingState(); // 清除 sessionStorage
+  switchPage('pageHome', document.querySelector('.nav-item'));
+}
+
+// ======================== 历史记录 ========================
+
+function renderHistory() {
+  const data = loadData();
+  const sessions = [...data.sessions].reverse();
+
+  // 统计
+  const statsEl = document.getElementById('historyStats');
+  const totalSessions = data.sessions.length;
+  const totalDuration = data.sessions.reduce((s,x)=>s+x.duration,0);
+  const totalSets = data.sessions.reduce((s,x)=>s+x.exercises.reduce((s2,e)=>s2+e.sets.length,0),0);
+  const totalWeight = data.sessions.reduce((s,x)=>s+x.exercises.reduce((s2,e)=>s2+e.sets.reduce((s3,st)=>s3+st.weight*st.reps,0),0),0);
+  statsEl.innerHTML = `
+    <div class="stat-box"><div class="val">${totalSessions}</div><div class="lbl">训练次数</div></div>
+    <div class="stat-box"><div class="val">${Math.round(totalDuration/3600*10)/10}</div><div class="lbl">总时长(h)</div></div>
+    <div class="stat-box"><div class="val">${totalSets}</div><div class="lbl">总组数</div></div>
+    <div class="stat-box"><div class="val">${Math.round(totalWeight)}</div><div class="lbl">总吨位(kg)</div></div>
+  `;
+
+  // 进度提示
+  renderProgressTips(data);
+
+  // 记录列表
+  const listEl = document.getElementById('historyList');
+  if (sessions.length === 0) {
+    listEl.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>还没有训练记录<br>开始你的第一次训练吧！</p></div>';
+    return;
+  }
+  listEl.innerHTML = sessions.map((s,i) => {
+    const realIdx = sessions.length - 1 - i;
+    const icon = s.parts.some(p=>['胸','背','腿','肩','二头','三头'].includes(p)) ? '🏋️' : '🏃';
+    return `
+      <div class="history-item" onclick="showSessionDetail(${realIdx})">
+        <div class="h-icon ${s.parts[0]?PART_COLORS[s.parts[0]]||'':'part-cardio'}">${icon}</div>
+        <div class="h-info">
+          <div class="h-date">${s.date}</div>
+          <div class="h-title">${s.parts.join(' + ')}</div>
+          <div class="h-sub">${s.exercises.length}个动作 · ${formatDuration(s.duration)}</div>
+        </div>
+        <div class="h-arrow">›</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderProgressTips(data) {
+  const tipsEl = document.getElementById('progressTips');
+  const tips = [];
+
+  // 分析每个动作的最近进步情况
+  const exerciseHistory = {};
+  data.sessions.forEach(s => {
+    s.exercises.forEach(ex => {
+      if (!exerciseHistory[ex.name]) exerciseHistory[ex.name] = [];
+      const maxWeight = Math.max(...ex.sets.map(st => st.weight || 0));
+      const totalVol = ex.sets.reduce((s,st) => s + (st.weight||0)*(st.reps||0), 0);
+      exerciseHistory[ex.name].push({
+        date: s.date,
+        maxWeight,
+        totalVol,
+        sets: ex.sets
+      });
+    });
+  });
+
+  // 生成提示
+  for (const [name, hist] of Object.entries(exerciseHistory)) {
+    if (hist.length < 2) continue;
+    const last = hist[hist.length - 1];
+    const prev = hist[hist.length - 2];
+    if (last.maxWeight > prev.maxWeight) {
+      tips.push({
+        title: `🎉 ${name} 重量提升！`,
+        text: `上次 ${prev.maxWeight}kg → 本次 ${last.maxWeight}kg，继续保持！`
+      });
+    } else if (last.maxWeight < prev.maxWeight) {
+      tips.push({
+        title: `📉 ${name} 重量下降`,
+        text: `上次 ${prev.maxWeight}kg → 本次 ${last.maxWeight}kg，注意休息恢复`
+      });
+    }
+    if (last.totalVol > prev.totalVol * 1.1) {
+      tips.push({
+        title: `💪 ${name} 训练量增加`,
+        text: `总训练量从 ${Math.round(prev.totalVol)}kg 提升到 ${Math.round(last.totalVol)}kg`
+      });
+    }
+  }
+
+  // 渐进超负荷建议
+  const recentExercises = new Set();
+  data.sessions.slice(-3).forEach(s => s.exercises.forEach(e => recentExercises.add(e.name)));
+  if (recentExercises.size > 0 && tips.length < 3) {
+    tips.push({
+      title: '💡 渐进超负荷建议',
+      text: '尝试在相同动作中每周增加 2.5% 的重量，或增加 1-2 次 repetitions'
+    });
+  }
+
+  tipsEl.innerHTML = tips.slice(0,4).map(t => `
+    <div class="tip-box">
+      <div class="tip-title">${t.title}</div>
+      <div class="tip-text">${t.text}</div>
+    </div>
+  `).join('');
+}
+
+function showSessionDetail(idx) {
+  const data = loadData();
+  const s = data.sessions[idx];
+  if (!s) return;
+
+  document.getElementById('modalTitle').textContent = `${s.date} 训练详情`;
+  document.getElementById('modalBody').innerHTML = `
+    <div style="margin-bottom:12px;font-size:13px;color:var(--text2);">
+      训练部位：${s.parts.join('、')}<br>
+      训练时长：${formatDuration(s.duration)}<br>
+      动作数量：${s.exercises.length}
+    </div>
+    ${s.exercises.map(ex => `
+      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:10px;">
+        <div style="font-weight:600;margin-bottom:8px;">
+          ${PART_ICONS[ex.part]||''} ${ex.name}
+          <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+          ${ex.sets.map(st => `
+            <div style="text-align:center;font-size:12px;padding:6px;background:var(--bg);border-radius:6px;">
+              <div style="font-weight:600;color:var(--accent2);">${st.weight||'-'}kg</div>
+              <div style="color:var(--text2);">${st.reps||'-'}次</div>
+            </div>
+          `).join('')}
+        </div>
+        ${ex.sets.reduce((sum,st) => sum + (st.weight||0)*(st.reps||0), 0) > 0 ?
+          `<div style="text-align:right;font-size:11px;color:var(--text2);margin-top:6px;">
+            训练量：${Math.round(ex.sets.reduce((sum,st) => sum + (st.weight||0)*(st.reps||0), 0))}kg
+          </div>` : ''
+        }
+      </div>
+    `).join('')}
+    <button class="btn btn-danger btn-sm" style="margin-top:8px;" onclick="deleteSession(${idx})">删除此记录</button>
+  `;
+  document.getElementById('detailModal').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('detailModal').classList.remove('show');
+}
+
+function deleteSession(idx) {
+  if (!confirm('确定删除这条训练记录？')) return;
+  const data = loadData();
+  data.sessions.splice(idx,1);
+  saveData(data);
+  closeModal();
+  renderHistory();
+}
+
+// ======================== 设置页 ========================
+
+// ======================== 趋势页 ========================
+
+function renderTrend() {
+  const data = loadData();
+  const allActions = getActions();
+
+  // 收集所有有训练记录的动作
+  const exercisesWithData = new Set();
+  data.sessions.forEach(s => {
+    s.exercises.forEach(ex => {
+      exercisesWithData.add(ex.name);
+    });
+  });
+
+  // 填充下拉框
+  const select = document.getElementById('trendExerciseSelect');
+  const currentVal = select.value;
+  const exerciseList = Array.from(exercisesWithData).sort();
+
+  let optionsHtml = '<option value="">选择动作查看趋势</option>';
+  exerciseList.forEach(name => {
+    optionsHtml += `<option value="${name}">${name}</option>`;
+  });
+  select.innerHTML = optionsHtml;
+
+  // 恢复之前的选择
+  if (currentVal && exerciseList.includes(currentVal)) {
+    select.value = currentVal;
+    renderTrendData(currentVal);
+  } else {
+    // 重置为空状态
+    document.getElementById('trendChartEmpty').style.display = '';
+    document.getElementById('trendCanvas').style.display = 'none';
+    document.getElementById('trendStatsContent').innerHTML = `
+      <div class="trend-empty" style="padding:20px 0;">
+        <div class="icon">📊</div>
+        <p>选择动作查看详细统计</p>
+      </div>
+    `;
+  }
+}
+
+function onTrendExerciseChange() {
+  const name = document.getElementById('trendExerciseSelect').value;
+  if (!name) {
+    document.getElementById('trendChartEmpty').style.display = '';
+    document.getElementById('trendCanvas').style.display = 'none';
+    document.getElementById('trendStatsContent').innerHTML = `
+      <div class="trend-empty" style="padding:20px 0;">
+        <div class="icon">📊</div>
+        <p>选择动作查看详细统计</p>
+      </div>
+    `;
+    return;
+  }
+  renderTrendData(name);
+}
+
+function renderTrendData(exerciseName) {
+  const data = loadData();
+
+  // 汇总该动作的所有历史数据
+  const history = [];
+  data.sessions.forEach(s => {
+    s.exercises.forEach(ex => {
+      if (ex.name === exerciseName) {
+        const maxWeight = Math.max(...ex.sets.map(st => st.weight || 0));
+        const totalVol = ex.sets.reduce((sum, st) => sum + (st.weight || 0) * (st.reps || 0), 0);
+        const totalSets = ex.sets.length;
+        history.push({
+          date: s.date,
+          maxWeight,
+          totalVol,
+          totalSets
+        });
+      }
+    });
+  });
+
+  // 按日期排序
+  history.sort((a, b) => a.date.localeCompare(b.date));
+
+  if (history.length === 0) return;
+
+  // 绘制图表
+  drawTrendChart(history);
+
+  // 渲染统计数据
+  renderTrendStats(history);
+}
+
+function drawTrendChart(history) {
+  const canvas = document.getElementById('trendCanvas');
+  const emptyEl = document.getElementById('trendChartEmpty');
+
+  emptyEl.style.display = 'none';
+  canvas.style.display = 'block';
+
+  // 高清屏适配
+  const dpr = window.devicePixelRatio || 1;
+  const wrapEl = document.getElementById('trendChartWrap');
+  const wrapWidth = wrapEl.clientWidth - 24; // padding
+  const chartHeight = 200;
+  canvas.width = wrapWidth * dpr;
+  canvas.height = chartHeight * dpr;
+  canvas.style.width = wrapWidth + 'px';
+  canvas.style.height = chartHeight + 'px';
+
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // 图表区域参数
+  const padLeft = 50;
+  const padRight = 16;
+  const padTop = 16;
+  const padBottom = 40;
+  const chartW = wrapWidth - padLeft - padRight;
+  const chartH = chartHeight - padTop - padBottom;
+
+  // 数据
+  const weights = history.map(h => h.maxWeight);
+  const minW = Math.min(...weights);
+  const maxW = Math.max(...weights);
+  const rangeW = maxW - minW || 1;
+  const yPadding = rangeW * 0.15;
+  const yMin = Math.max(0, minW - yPadding);
+  const yMax = maxW + yPadding;
+  const yRange = yMax - yMin || 1;
+
+  // 清空
+  ctx.clearRect(0, 0, wrapWidth, chartHeight);
+
+  // 网格线和Y轴标签
+  const ySteps = 5;
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i <= ySteps; i++) {
+    const val = yMin + (yRange / ySteps) * i;
+    const y = padTop + chartH - (chartH / ySteps) * i;
+    // 网格线
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padLeft, y);
+    ctx.lineTo(padLeft + chartW, y);
+    ctx.stroke();
+    // 标签
+    ctx.fillStyle = '#6c6c80';
+    ctx.fillText(val.toFixed(0) + 'kg', padLeft - 6, y);
+  }
+
+  // X轴标签（日期）
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  const maxLabels = 6;
+  const step = Math.max(1, Math.ceil(history.length / maxLabels));
+  history.forEach((h, i) => {
+    if (i % step === 0 || i === history.length - 1) {
+      const x = padLeft + (chartW / Math.max(1, history.length - 1)) * i;
+      const dateLabel = h.date.substring(5); // MM-DD
+      ctx.fillStyle = '#6c6c80';
+      ctx.fillText(dateLabel, x, padTop + chartH + 8);
+    }
+  });
+
+  // 折线
+  if (history.length > 1) {
+    ctx.beginPath();
+    history.forEach((h, i) => {
+      const x = padLeft + (chartW / (history.length - 1)) * i;
+      const y = padTop + chartH - ((h.maxWeight - yMin) / yRange) * chartH;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.strokeStyle = '#6c5ce7';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // 面积填充
+    const lastX = padLeft + chartW;
+    const baseY = padTop + chartH;
+    ctx.lineTo(lastX, baseY);
+    ctx.lineTo(padLeft, baseY);
+    ctx.closePath();
+    const gradient = ctx.createLinearGradient(0, padTop, 0, baseY);
+    gradient.addColorStop(0, 'rgba(108,92,231,0.3)');
+    gradient.addColorStop(1, 'rgba(108,92,231,0.02)');
+    ctx.fillStyle = gradient;
+    ctx.fill();
+  }
+
+  // 数据点
+  history.forEach((h, i) => {
+    const x = padLeft + (history.length > 1 ? (chartW / (history.length - 1)) * i : chartW / 2);
+    const y = padTop + chartH - ((h.maxWeight - yMin) / yRange) * chartH;
+
+    // 最后一个点用橙色高亮
+    const isLast = (i === history.length - 1);
+    const radius = isLast ? 6 : 4;
+    const color = isLast ? '#fdcb6e' : '#6c5ce7';
+
+    // 外圈光晕
+    if (isLast) {
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(253,203,110,0.2)';
+      ctx.fill();
+    }
+
+    // 实心圆
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    // 白色内圈
+    ctx.beginPath();
+    ctx.arc(x, y, radius - 2, 0, Math.PI * 2);
+    ctx.fillStyle = isLast ? '#fdcb6e' : '#a29bfe';
+    ctx.fill();
+
+    // 最后一个点标注数值
+    if (isLast) {
+      ctx.font = 'bold 12px -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillStyle = '#fdcb6e';
+      ctx.fillText(h.maxWeight + 'kg', x, y - 10);
+    }
+  });
+}
+
+function renderTrendStats(history) {
+  const el = document.getElementById('trendStatsContent');
+  if (history.length === 0) return;
+
+  const maxWeight = Math.max(...history.map(h => h.maxWeight));
+  const avgVol = history.reduce((s, h) => s + h.totalVol, 0) / history.length;
+  const totalCount = history.length;
+
+  // 趋势判断
+  let trendText = '持平';
+  let trendIcon = '➡️';
+  let trendColor = 'var(--text2)';
+  if (history.length >= 2) {
+    const recent = history.slice(-3);
+    const older = history.slice(0, -3);
+    if (recent.length >= 2) {
+      const recentAvg = recent.reduce((s, h) => s + h.maxWeight, 0) / recent.length;
+      const olderAvg = older.length > 0
+        ? older.reduce((s, h) => s + h.maxWeight, 0) / older.length
+        : recent[0].maxWeight;
+      const diff = recentAvg - olderAvg;
+      if (diff > 1) {
+        trendText = '上升';
+        trendIcon = '📈';
+        trendColor = 'var(--green)';
+      } else if (diff < -1) {
+        trendText = '下降';
+        trendIcon = '📉';
+        trendColor = 'var(--red)';
+      }
+    }
+  }
+
+  el.innerHTML = `
+    <div class="trend-stats-grid">
+      <div class="trend-stat-card">
+        <div class="ts-icon">🏆</div>
+        <div class="ts-info">
+          <div class="ts-label">历史最大重量</div>
+          <div class="ts-value">${maxWeight}kg</div>
+        </div>
+      </div>
+      <div class="trend-stat-card">
+        <div class="ts-icon">📊</div>
+        <div class="ts-info">
+          <div class="ts-label">平均训练量</div>
+          <div class="ts-value">${Math.round(avgVol)}</div>
+        </div>
+      </div>
+      <div class="trend-stat-card">
+        <div class="ts-icon">📝</div>
+        <div class="ts-info">
+          <div class="ts-label">训练次数</div>
+          <div class="ts-value">${totalCount}次</div>
+        </div>
+      </div>
+      <div class="trend-stat-card">
+        <div class="ts-icon">${trendIcon}</div>
+        <div class="ts-info">
+          <div class="ts-label">趋势</div>
+          <div class="ts-value" style="color:${trendColor};">${trendText}</div>
+        </div>
+      </div>
+    </div>
+    ${history.length > 1 ? `
+      <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);">
+        <div style="font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;">历次记录</div>
+        ${history.map((h, i) => {
+          const prevW = i > 0 ? history[i-1].maxWeight : null;
+          const diff = prevW !== null ? h.maxWeight - prevW : 0;
+          const diffStr = diff > 0 ? `<span style="color:var(--green);">+${diff}kg</span>` :
+                          diff < 0 ? `<span style="color:var(--red);">${diff}kg</span>` :
+                          `<span style="color:var(--text3);">持平</span>`;
+          return `
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:13px;">
+              <span style="color:var(--text2);">${h.date}</span>
+              <span style="font-weight:700;color:var(--accent2);">${h.maxWeight}kg</span>
+              <span style="font-size:12px;">${i > 0 ? diffStr : '<span style="color:var(--text3);">-</span>'}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    ` : ''}
+  `;
+}
+
+// ======================== 设置页 ========================
+
+function renderSettings() {
+  const data = loadData();
+  const allActions = getActions();
+
+  const listEl = document.getElementById('actionList');
+
+  let html = '';
+  for (const [part, actions] of Object.entries(allActions)) {
+    const isCustom = data.customActions[part];
+    actions.forEach(name => {
+      const isUserCustom = isCustom && isCustom.includes(name);
+      html += `
+        <div class="action-item">
+          <div>
+            <div class="a-name">${PART_ICONS[part]||''} ${name}</div>
+            <div class="a-part">${part}</div>
+          </div>
+          ${isUserCustom ? `<button class="a-del" onclick="deleteCustomAction('${part}','${name.replace(/'/g,"\\'")}')">删除</button>` : ''}
+        </div>
+      `;
+    });
+  }
+  listEl.innerHTML = html || '<div class="empty-state"><p>暂无动作</p></div>';
+}
+
+function addNewAction() {
+  const name = document.getElementById('newActionName').value.trim();
+  const part = document.getElementById('newActionPart').value;
+  if (!name) { alert('请输入动作名称'); return; }
+
+  const data = loadData();
+  if (!data.customActions[part]) data.customActions[part] = [];
+  if (data.customActions[part].includes(name) || DEFAULT_EXERCISES[part]?.includes(name)) {
+    alert('该动作已存在'); return;
+  }
+  data.customActions[part].push(name);
+  saveData(data);
+  document.getElementById('newActionName').value = '';
+  renderSettings();
+}
+
+function deleteCustomAction(part, name) {
+  if (!confirm(`确定删除动作"${name}"？`)) return;
+  const data = loadData();
+  if (data.customActions[part]) {
+    data.customActions[part] = data.customActions[part].filter(a => a !== name);
+    if (data.customActions[part].length === 0) delete data.customActions[part];
+  }
+  saveData(data);
+  renderSettings();
+}
+
+// ======================== 数据管理 ========================
+
+function exportData() {
+  const data = loadData();
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `fitlog_backup_${formatDate(new Date())}.json`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const imported = JSON.parse(ev.target.result);
+      if (imported.sessions) {
+        const data = loadData();
+        data.sessions = [...data.sessions, ...imported.sessions];
+        if (imported.customActions) {
+          for (const k in imported.customActions) {
+            if (!data.customActions[k]) data.customActions[k] = [];
+            imported.customActions[k].forEach(a => {
+              if (!data.customActions[k].includes(a)) data.customActions[k].push(a);
+            });
+          }
+        }
+        saveData(data);
+        alert('导入成功！');
+        renderSettings();
+      } else {
+        alert('数据格式不正确');
+      }
+    } catch(err) {
+      alert('导入失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+}
+
+function clearAllData() {
+  if (!confirm('⚠️ 确定清空所有训练数据？此操作不可恢复！')) return;
+  if (!confirm('再次确认：真的要删除所有数据吗？')) return;
+  localStorage.removeItem('fitlog_data');
+  renderSettings();
+  alert('数据已清空');
+}
+
+// ======================== 工具函数 ========================
+
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// ======================== 初始化 ========================
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderHome();
+
+  // 检查是否有未完成的训练状态
+  if (hasSavedTraining()) {
+    updateTrainingBanner();
+  }
+
+  // 点击弹窗外关闭
+  ['detailModal','dayModal','templateModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', function(e) {
+      if (e.target === this) {
+        this.classList.remove('show');
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
