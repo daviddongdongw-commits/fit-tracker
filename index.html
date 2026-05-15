@@ -335,7 +335,7 @@
     border-radius:12px; padding:14px; margin-bottom:12px;
   }
   .tip-box .tip-title { font-size:13px; font-weight:700; color:var(--accent2); margin-bottom:4px; }
-  .tip-box .tip-text { font-size:12px; color:var(--text2); line-height:1.5; }
+  .tip-box .tip-text { font-size:12px; color:var(--text2); line-height:1.5; white-space:nowrap; }
 
   /* 趋势页 */
   .trend-select {
@@ -484,10 +484,6 @@
   <button class="btn btn-primary btn-full" style="font-size:18px;padding:16px;" onclick="startNewSession()">
     🏋️ 开始训练
   </button>
-  <div style="height:10px"></div>
-  <button class="btn btn-outline btn-full" onclick="startCardioSession()">
-    🏃 开始有氧
-  </button>
 </div>
 
 <!-- ====== 页面2：训练中 ====== -->
@@ -591,9 +587,6 @@
     <div class="stat-row" id="historyStats"></div>
   </div>
 
-  <!-- 进度提示 -->
-  <div id="progressTips"></div>
-
   <div class="card-title" style="padding:0 4px 10px;"><span class="dot" style="background:var(--green)"></span> 训练记录</div>
   <div id="historyList"></div>
 </div>
@@ -646,6 +639,9 @@
 
 <!-- ====== 页面5：趋势 ====== -->
 <div class="page" id="pageTrend">
+  <!-- 进度提示 -->
+  <div id="progressTips"></div>
+
   <!-- 动作选择 -->
   <div class="card">
     <div class="card-title"><span class="dot" style="background:var(--accent2)"></span> 动作趋势</div>
@@ -1931,9 +1927,6 @@ function renderHistory() {
     <div class="stat-box"><div class="val">${Math.round(totalWeight)}</div><div class="lbl">总吨位(kg)</div></div>
   `;
 
-  // 进度提示
-  renderProgressTips(data);
-
   // 记录列表
   const listEl = document.getElementById('historyList');
   if (sessions.length === 0) {
@@ -2101,6 +2094,9 @@ function deleteSession(idx) {
 function renderTrend() {
   const data = loadData();
   const allActions = getActions();
+
+  // 渲染进度提示
+  renderProgressTips(data);
 
   // 收集所有有训练记录的动作
   const exercisesWithData = new Set();
