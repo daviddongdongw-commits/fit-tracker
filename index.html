@@ -488,6 +488,7 @@
       <button class="btn btn-sm btn-primary" onclick="toggleTimer()">⏱ 开始计时</button>
       <button class="btn btn-sm btn-danger" onclick="finishTraining()">✅ 结束训练</button>
     </div>
+    <button class="btn btn-sm btn-outline btn-full" style="margin-top:10px;color:var(--text3);border-color:rgba(255,255,255,.12);" onclick="cancelTraining()">取消训练</button>
   </div>
 
   <!-- 选择训练部位 -->
@@ -508,7 +509,7 @@
     </div>
   </div>
 
-  <!-- 组数记录 -->
+  <!-- 组数记录（力量训练） -->
   <div class="card" id="setsCard" style="display:none;">
     <div class="card-title">
       <span class="dot" style="background:var(--accent)"></span>
@@ -516,11 +517,52 @@
       <span style="flex:1"></span>
       <button class="btn btn-sm btn-primary" onclick="addSet()">+ 加一组</button>
     </div>
+    <div id="prefillHint" style="display:none;background:rgba(108,92,231,.12);border:1px solid rgba(108,92,231,.25);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--accent2);display:none;">
+      📋 已填入上次训练数据，可直接修改后保存
+    </div>
     <div style="font-size:11px;color:var(--text3);display:grid;grid-template-columns:40px 1fr 1fr 1fr 36px;gap:8px;padding:0 0 6px;">
       <span>组</span><span>重量(kg)</span><span>次数</span><span>备注</span><span></span>
     </div>
     <div id="setsList"></div>
     <button class="btn btn-sm btn-success btn-full" style="margin-top:10px;" onclick="saveExerciseSets()">💾 保存此动作</button>
+  </div>
+
+  <!-- 有氧训练记录 -->
+  <div class="card" id="cardioCard" style="display:none;">
+    <div class="card-title">
+      <span class="dot" style="background:var(--green)"></span>
+      <span id="cardioExName">跑步</span>
+    </div>
+    <div id="cardioPrefillHint" style="display:none;background:rgba(108,92,231,.12);border:1px solid rgba(108,92,231,.25);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:var(--accent2);">
+      📋 已填入上次训练数据，可直接修改后保存
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="input-group">
+        <label>距离 (km)</label>
+        <input type="number" step="0.01" id="cardioDistance" placeholder="0.00" oninput="calcCardioPace()">
+      </div>
+      <div class="input-group">
+        <label>时长 (分钟)</label>
+        <input type="number" id="cardioDuration" placeholder="0" oninput="calcCardioPace()">
+      </div>
+      <div class="input-group">
+        <label>配速 (自动计算)</label>
+        <input type="text" id="cardioPace" placeholder="-'--"" readonly style="color:var(--accent2);">
+      </div>
+      <div class="input-group">
+        <label>平均心率 (bpm)</label>
+        <input type="number" id="cardioHr" placeholder="可选">
+      </div>
+      <div class="input-group">
+        <label>消耗卡路里 (kcal)</label>
+        <input type="number" id="cardioCalories" placeholder="可选">
+      </div>
+      <div class="input-group">
+        <label>感受 / 备注</label>
+        <input type="text" id="cardioNote" placeholder="轻松/中等/吃力...">
+      </div>
+    </div>
+    <button class="btn btn-sm btn-success btn-full" style="margin-top:10px;" onclick="saveCardioExercise()">💾 保存此动作</button>
   </div>
 
   <!-- 已完成的动作 -->
@@ -582,6 +624,7 @@
     <button class="btn btn-outline btn-full" onclick="exportData()" style="margin-bottom:8px;">📦 导出数据</button>
     <button class="btn btn-outline btn-full" onclick="document.getElementById('importFile').click()" style="margin-bottom:8px;">📥 导入数据</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <button class="btn btn-outline btn-full" onclick="showEmailBackupModal()" style="margin-bottom:8px;">📧 邮件备份</button>
     <button class="btn btn-danger btn-full" onclick="clearAllData()">🗑️ 清空所有数据</button>
   </div>
 </div>
@@ -682,6 +725,26 @@
   <button class="nav-item" onclick="switchPage('pageSettings',this)">
     <span class="icon">⚙️</span>设置
   </button>
+</div>
+
+<!-- ====== 邮件备份弹窗 ====== -->
+<div class="modal" id="emailModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3 id="emailModalTitle">📧 邮件备份</h3>
+      <button class="close-btn" onclick="closeEmailModal()">×</button>
+    </div>
+    <div style="padding:4px 0;">
+      <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">
+        输入收件邮箱后，将调起系统邮件客户端，训练数据会作为邮件正文发送。
+      </div>
+      <div class="input-group" style="margin-bottom:12px;">
+        <label style="font-size:12px;color:var(--text2);margin-bottom:4px;display:block;">收件邮箱</label>
+        <input type="email" id="backupEmail" placeholder="your@email.com" style="width:100%;padding:10px 12px;background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);font-size:15px;outline:none;">
+      </div>
+      <button class="btn btn-primary btn-full" onclick="sendEmailBackup()">📤 打开邮件客户端发送</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -855,6 +918,10 @@ function resumeTraining() {
     document.getElementById('timerDisplay').textContent = formatTime(getElapsedSeconds());
     document.getElementById('trainingTitle').textContent = state.trainingTitle || '训练进行中';
 
+    // 先隐藏所有表单
+    document.getElementById('setsCard').style.display = 'none';
+    document.getElementById('cardioCard').style.display = 'none';
+
     if (currentSession.exercises.length > 0) {
       renderCompletedExercises();
     } else {
@@ -863,11 +930,15 @@ function resumeTraining() {
 
     // 恢复当前正在编辑的动作
     if (selectedExercise) {
-      document.getElementById('currentExName').textContent = selectedExercise;
-      document.getElementById('setsCard').style.display = 'block';
-      renderSets();
-    } else {
-      document.getElementById('setsCard').style.display = 'none';
+      if (isCardioPart(selectedPart)) {
+        document.getElementById('cardioExName').textContent = selectedExercise;
+        document.getElementById('cardioCard').style.display = 'block';
+        // 有氧表单的值不保存在 sessionStorage，恢复时为空
+      } else {
+        document.getElementById('currentExName').textContent = selectedExercise;
+        document.getElementById('setsCard').style.display = 'block';
+        renderSets();
+      }
     }
 
     renderPartTags();
@@ -1349,6 +1420,7 @@ function startNewSessionForDate(date, presetParts) {
   const dateHint = formatDate(date) === formatDate(new Date()) ? '' : `（${formatDate(date)}）`;
   document.getElementById('trainingTitle').textContent = `训练进行中 · ${trainingLabel} ${dateHint}`;
   document.getElementById('setsCard').style.display = 'none';
+  document.getElementById('cardioCard').style.display = 'none';
   document.getElementById('completedExercises').innerHTML = '';
 
   renderPartTags();
@@ -1380,6 +1452,7 @@ function startCardioSession() {
   document.getElementById('timerDisplay').textContent = '00:00';
   document.getElementById('trainingTitle').textContent = '有氧训练';
   document.getElementById('setsCard').style.display = 'none';
+  document.getElementById('cardioCard').style.display = 'none';
   document.getElementById('completedExercises').innerHTML = '';
 
   renderPartTags();
@@ -1464,6 +1537,7 @@ function selectPart(part) {
   }
   selectedExercise = '';
   document.getElementById('setsCard').style.display = 'none';
+  document.getElementById('cardioCard').style.display = 'none';
   renderPartTags();
   renderExerciseTags();
 }
@@ -1479,15 +1553,113 @@ function renderExerciseTags() {
     </div>
   `).join('');
 }
+
+// 判断是否是有氧部位
+function isCardioPart(part) {
+  return part === '有氧';
+}
+
+// 获取某动作最近一次训练的组数据（力量训练用）
+function getLastExerciseSets(exerciseName) {
+  const data = loadData();
+  for (let i = data.sessions.length - 1; i >= 0; i--) {
+    const s = data.sessions[i];
+    for (let j = s.exercises.length - 1; j >= 0; j--) {
+      if (s.exercises[j].name === exerciseName) {
+        const ex = s.exercises[j];
+        // 如果是有氧记录，返回有氧格式
+        if (ex.cardio) {
+          return {
+            date: s.date,
+            cardio: true,
+            distance: String(ex.cardio.distance || ''),
+            durationMin: String(ex.cardio.durationMin || ''),
+            hr: String(ex.cardio.hr || ''),
+            calories: String(ex.cardio.calories || ''),
+            note: ex.cardio.note || ''
+          };
+        }
+        return {
+          date: s.date,
+          cardio: false,
+          sets: ex.sets.map(st => ({
+            weight: String(st.weight || ''),
+            reps: String(st.reps || ''),
+            note: st.note || ''
+          }))
+        };
+      }
+    }
+  }
+  return null;
+}
+
 function selectExercise(name) {
   selectedExercise = name;
-  currentSets = [];
-  setCounter = 0;
-  document.getElementById('currentExName').textContent = name;
-  document.getElementById('setsCard').style.display = 'block';
-  document.getElementById('setsList').innerHTML = '';
+
+  // 隐藏所有表单
+  document.getElementById('setsCard').style.display = 'none';
+  document.getElementById('cardioCard').style.display = 'none';
+
+  // 判断是有氧还是力量
+  if (isCardioPart(selectedPart)) {
+    // 有氧训练
+    document.getElementById('cardioExName').textContent = name;
+    document.getElementById('cardioCard').style.display = 'block';
+
+    const hintEl = document.getElementById('cardioPrefillHint');
+    const lastData = getLastExerciseSets(name);
+
+    if (lastData && lastData.cardio) {
+      document.getElementById('cardioDistance').value = lastData.distance;
+      document.getElementById('cardioDuration').value = lastData.durationMin;
+      document.getElementById('cardioHr').value = lastData.hr;
+      document.getElementById('cardioCalories').value = lastData.calories;
+      document.getElementById('cardioNote').value = lastData.note;
+      calcCardioPace();
+      hintEl.textContent = `📋 已填入 ${lastData.date} 的训练数据，可直接修改后保存`;
+      hintEl.style.display = 'block';
+    } else {
+      document.getElementById('cardioDistance').value = '';
+      document.getElementById('cardioDuration').value = '';
+      document.getElementById('cardioHr').value = '';
+      document.getElementById('cardioCalories').value = '';
+      document.getElementById('cardioNote').value = '';
+      document.getElementById('cardioPace').value = '';
+      hintEl.style.display = 'none';
+    }
+
+    currentSets = [];
+    setCounter = 0;
+  } else {
+    // 力量训练
+    currentSets = [];
+    setCounter = 0;
+    document.getElementById('currentExName').textContent = name;
+    document.getElementById('setsCard').style.display = 'block';
+
+    const hintEl = document.getElementById('prefillHint');
+    const lastData = getLastExerciseSets(name);
+
+    if (lastData && !lastData.cardio && lastData.sets && lastData.sets.length > 0) {
+      currentSets = lastData.sets.map(s => ({
+        weight: s.weight,
+        reps: s.reps,
+        note: s.note
+      }));
+      setCounter = currentSets.length;
+      hintEl.textContent = `📋 已填入 ${lastData.date} 的训练数据，可直接修改后保存`;
+      hintEl.style.display = 'block';
+    } else {
+      currentSets = [{ weight: '', reps: '', note: '' }];
+      setCounter = 1;
+      hintEl.style.display = 'none';
+    }
+
+    renderSets();
+  }
+
   renderExerciseTags();
-  addSet(); // 自动加第一组
 }
 
 function addCustomExercise() {
@@ -1563,25 +1735,122 @@ function saveExerciseSets() {
   saveTrainingState();
 }
 
+// 配速自动计算（分钟/公里）
+function calcCardioPace() {
+  const dist = parseFloat(document.getElementById('cardioDistance').value) || 0;
+  const dur = parseFloat(document.getElementById('cardioDuration').value) || 0;
+  const paceEl = document.getElementById('cardioPace');
+
+  if (dist > 0 && dur > 0) {
+    const paceMin = dur / dist; // 分钟/公里
+    const m = Math.floor(paceMin);
+    const sec = Math.round((paceMin - m) * 60);
+    paceEl.value = `${m}'${String(sec).padStart(2,'0')}"`;
+  } else {
+    paceEl.value = '';
+  }
+}
+
+// 保存有氧动作
+function saveCardioExercise() {
+  if (!selectedExercise) return;
+  const distance = parseFloat(document.getElementById('cardioDistance').value) || 0;
+  const durationMin = parseFloat(document.getElementById('cardioDuration').value) || 0;
+  const hr = parseInt(document.getElementById('cardioHr').value) || 0;
+  const calories = parseInt(document.getElementById('cardioCalories').value) || 0;
+  const note = document.getElementById('cardioNote').value.trim();
+
+  if (distance === 0 && durationMin === 0) {
+    alert('请至少填写距离或时长');
+    return;
+  }
+
+  // 计算配速
+  let paceStr = '';
+  if (distance > 0 && durationMin > 0) {
+    const paceMin = durationMin / distance;
+    const m = Math.floor(paceMin);
+    const sec = Math.round((paceMin - m) * 60);
+    paceStr = `${m}'${String(sec).padStart(2,'0')}"`;
+  }
+
+  currentSession.exercises.push({
+    name: selectedExercise,
+    part: selectedPart,
+    sets: [],
+    cardio: {
+      distance,
+      durationMin,
+      pace: paceStr,
+      hr,
+      calories,
+      note
+    },
+    timestamp: new Date().toISOString()
+  });
+
+  renderCompletedExercises();
+
+  // 重置
+  selectedExercise = '';
+  currentSets = [];
+  setCounter = 0;
+  document.getElementById('cardioCard').style.display = 'none';
+  document.getElementById('cardioDistance').value = '';
+  document.getElementById('cardioDuration').value = '';
+  document.getElementById('cardioHr').value = '';
+  document.getElementById('cardioCalories').value = '';
+  document.getElementById('cardioNote').value = '';
+  document.getElementById('cardioPace').value = '';
+  renderExerciseTags();
+
+  saveTrainingState();
+}
+
 function renderCompletedExercises() {
   const el = document.getElementById('completedExercises');
-  el.innerHTML = currentSession.exercises.map((ex,i) => `
-    <div class="card" style="border-left:3px solid var(--accent);">
-      <div class="card-title">
-        <span class="dot" style="background:var(--green)"></span>
-        ${ex.name}
-        <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
-      </div>
-      ${ex.sets.map(s => `
-        <div style="display:flex;gap:12px;font-size:13px;padding:4px 0;color:var(--text2);">
-          <span>第${s.setNum}组</span>
-          ${s.weight?`<span>${s.weight}kg</span>`:''}
-          ${s.reps?`<span>${s.reps}次</span>`:''}
-          ${s.note?`<span style="color:var(--text3)">${s.note}</span>`:''}
+  el.innerHTML = currentSession.exercises.map((ex,i) => {
+    if (ex.cardio) {
+      // 有氧动作显示
+      const c = ex.cardio;
+      return `
+        <div class="card" style="border-left:3px solid var(--green);">
+          <div class="card-title">
+            <span class="dot" style="background:var(--green)"></span>
+            ${ex.name}
+            <span style="font-size:11px;color:var(--text2);font-weight:400;">（有氧）</span>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;">
+            ${c.distance ? `<div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--accent2);">${c.distance}</div><div style="font-size:10px;color:var(--text3);">公里</div></div>` : ''}
+            ${c.durationMin ? `<div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--accent2);">${c.durationMin}</div><div style="font-size:10px;color:var(--text3);">分钟</div></div>` : ''}
+            ${c.pace ? `<div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--orange);">${c.pace}</div><div style="font-size:10px;color:var(--text3);">配速</div></div>` : ''}
+            ${c.hr ? `<div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--red);">${c.hr}</div><div style="font-size:10px;color:var(--text3);">心率bpm</div></div>` : ''}
+            ${c.calories ? `<div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--orange);">${c.calories}</div><div style="font-size:10px;color:var(--text3);">千卡</div></div>` : ''}
+          </div>
+          ${c.note ? `<div style="font-size:12px;color:var(--text2);margin-top:8px;">📝 ${c.note}</div>` : ''}
         </div>
-      `).join('')}
-    </div>
-  `).join('');
+      `;
+    } else {
+      // 力量训练显示
+      return `
+        <div class="card" style="border-left:3px solid var(--accent);">
+          <div class="card-title">
+            <span class="dot" style="background:var(--green)"></span>
+            ${ex.name}
+            <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
+          </div>
+          ${ex.sets.map(s => `
+            <div style="display:flex;gap:12px;font-size:13px;padding:4px 0;color:var(--text2);">
+              <span>第${s.setNum}组</span>
+              ${s.weight?`<span>${s.weight}kg</span>`:''}
+              ${s.reps?`<span>${s.reps}次</span>`:''}
+              ${s.note?`<span style="color:var(--text3)">${s.note}</span>`:''}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+  }).join('');
 }
 
 // 结束训练
@@ -1592,13 +1861,20 @@ function finishTraining() {
   }
   if (!confirm('确定结束本次训练？')) return;
 
-  if (timerRunning) {
-    // 暂停计时器，获取最终时长
-    clearInterval(timerInterval);
-    timerRunning = false;
+  // 计算最终时长
+  let elapsed = getElapsedSeconds();
+
+  // 如果计时器没有启动过（用户没点计时），用 startTime 到现在的差值兜底
+  if (elapsed === 0 && currentSession.startTime) {
+    elapsed = Math.floor((Date.now() - new Date(currentSession.startTime).getTime()) / 1000);
   }
-  currentSession.duration = getElapsedSeconds();
+
+  currentSession.duration = elapsed;
   currentSession.endTime = new Date().toISOString();
+
+  // 停止计时器
+  clearInterval(timerInterval);
+  timerRunning = false;
 
   const data = loadData();
   data.sessions.push(currentSession);
@@ -1606,6 +1882,20 @@ function finishTraining() {
 
   currentSession = null;
   clearTrainingState(); // 清除 sessionStorage
+  switchPage('pageHome', document.querySelector('.nav-item'));
+}
+
+// 取消训练（不保存数据，直接返回首页）
+function cancelTraining() {
+  if (currentSession && currentSession.exercises.length > 0) {
+    if (!confirm('已记录的动作数据将丢失，确定取消训练？')) return;
+  }
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerStartedAt = 0;
+  timerSeconds = 0;
+  currentSession = null;
+  clearTrainingState();
   switchPage('pageHome', document.querySelector('.nav-item'));
 }
 
@@ -1728,27 +2018,51 @@ function showSessionDetail(idx) {
       训练时长：${formatDuration(s.duration)}<br>
       动作数量：${s.exercises.length}
     </div>
-    ${s.exercises.map(ex => `
-      <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:10px;">
-        <div style="font-weight:600;margin-bottom:8px;">
-          ${PART_ICONS[ex.part]||''} ${ex.name}
-          <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
-          ${ex.sets.map(st => `
-            <div style="text-align:center;font-size:12px;padding:6px;background:var(--bg);border-radius:6px;">
-              <div style="font-weight:600;color:var(--accent2);">${st.weight||'-'}kg</div>
-              <div style="color:var(--text2);">${st.reps||'-'}次</div>
+    ${s.exercises.map(ex => {
+      if (ex.cardio) {
+        // 有氧动作详情
+        const c = ex.cardio;
+        return `
+          <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:10px;">
+            <div style="font-weight:600;margin-bottom:8px;">
+              🏃 ${ex.name}
+              <span style="font-size:11px;color:var(--text2);font-weight:400;">（有氧）</span>
             </div>
-          `).join('')}
-        </div>
-        ${ex.sets.reduce((sum,st) => sum + (st.weight||0)*(st.reps||0), 0) > 0 ?
-          `<div style="text-align:right;font-size:11px;color:var(--text2);margin-top:6px;">
-            训练量：${Math.round(ex.sets.reduce((sum,st) => sum + (st.weight||0)*(st.reps||0), 0))}kg
-          </div>` : ''
-        }
-      </div>
-    `).join('')}
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;">
+              ${c.distance ? `<div style="text-align:center;font-size:12px;padding:8px 4px;background:var(--bg);border-radius:6px;"><div style="font-weight:600;color:var(--accent2);">${c.distance} km</div><div style="color:var(--text3);font-size:10px;">距离</div></div>` : ''}
+              ${c.durationMin ? `<div style="text-align:center;font-size:12px;padding:8px 4px;background:var(--bg);border-radius:6px;"><div style="font-weight:600;color:var(--accent2);">${c.durationMin} 分钟</div><div style="color:var(--text3);font-size:10px;">时长</div></div>` : ''}
+              ${c.pace ? `<div style="text-align:center;font-size:12px;padding:8px 4px;background:var(--bg);border-radius:6px;"><div style="font-weight:600;color:var(--orange);">${c.pace}</div><div style="color:var(--text3);font-size:10px;">配速</div></div>` : ''}
+              ${c.hr ? `<div style="text-align:center;font-size:12px;padding:8px 4px;background:var(--bg);border-radius:6px;"><div style="font-weight:600;color:var(--red);">${c.hr} bpm</div><div style="color:var(--text3);font-size:10px;">心率</div></div>` : ''}
+              ${c.calories ? `<div style="text-align:center;font-size:12px;padding:8px 4px;background:var(--bg);border-radius:6px;"><div style="font-weight:600;color:var(--orange);">${c.calories} kcal</div><div style="color:var(--text3);font-size:10px;">消耗</div></div>` : ''}
+              ${c.note ? `<div style="text-align:center;font-size:12px;padding:8px 4px;background:var(--bg);border-radius:6px;grid-column:span ${c.hr||c.calories?'1':'2'};"><div style="font-weight:400;color:var(--text2);">📝 ${c.note}</div></div>` : ''}
+            </div>
+          </div>
+        `;
+      } else {
+        // 力量训练详情
+        return `
+          <div style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:10px;">
+            <div style="font-weight:600;margin-bottom:8px;">
+              ${PART_ICONS[ex.part]||''} ${ex.name}
+              <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+              ${ex.sets.map(st => `
+                <div style="text-align:center;font-size:12px;padding:6px;background:var(--bg);border-radius:6px;">
+                  <div style="font-weight:600;color:var(--accent2);">${st.weight||'-'}kg</div>
+                  <div style="color:var(--text2);">${st.reps||'-'}次</div>
+                </div>
+              `).join('')}
+            </div>
+            ${ex.sets.reduce((sum,st) => sum + (st.weight||0)*(st.reps||0), 0) > 0 ?
+              `<div style="text-align:right;font-size:11px;color:var(--text2);margin-top:6px;">
+                训练量：${Math.round(ex.sets.reduce((sum,st) => sum + (st.weight||0)*(st.reps||0), 0))}kg
+              </div>` : ''
+            }
+          </div>
+        `;
+      }
+    }).join('')}
     <button class="btn btn-danger btn-sm" style="margin-top:8px;" onclick="deleteSession(${idx})">删除此记录</button>
   `;
   document.getElementById('detailModal').classList.add('show');
@@ -2194,6 +2508,90 @@ function clearAllData() {
   alert('数据已清空');
 }
 
+// ======================== 邮件备份 ========================
+
+function showEmailBackupModal() {
+  document.getElementById('backupEmail').value = '';
+  document.getElementById('emailModal').classList.add('show');
+}
+
+function closeEmailModal() {
+  document.getElementById('emailModal').classList.remove('show');
+}
+
+function sendEmailBackup() {
+  const email = document.getElementById('backupEmail').value.trim();
+  if (!email || !email.includes('@')) {
+    alert('请输入有效的邮箱地址');
+    return;
+  }
+
+  // 收集所有训练数据，整理为可读文本
+  const data = loadData();
+  const lines = [];
+  const divider = '──────────────────────────';
+
+  lines.push('💪 FitLog 训练数据备份');
+  lines.push('备份时间：' + new Date().toLocaleString('zh-CN'));
+  lines.push('训练总次数：' + data.sessions.length);
+  lines.push(divider);
+
+  if (data.sessions.length === 0) {
+    lines.push('暂无训练记录');
+  } else {
+    data.sessions.forEach((s, idx) => {
+      lines.push('');
+      lines.push(`📅 第${idx + 1}次训练`);
+      lines.push(`日期：${s.date}`);
+      lines.push(`部位：${s.parts.join('、')}`);
+      lines.push(`时长：${formatDuration(s.duration)}`);
+      lines.push(`动作数：${s.exercises.length}`);
+
+      s.exercises.forEach(ex => {
+        lines.push('');
+        if (ex.cardio) {
+          const c = ex.cardio;
+          lines.push(`  🏃 ${ex.name}`);
+          if (c.distance) lines.push(`     距离：${c.distance} km`);
+          if (c.durationMin) lines.push(`     时长：${c.durationMin} 分钟`);
+          if (c.pace) lines.push(`     配速：${c.pace}`);
+          if (c.hr) lines.push(`     心率：${c.hr} bpm`);
+          if (c.calories) lines.push(`     消耗：${c.calories} kcal`);
+          if (c.note) lines.push(`     备注：${c.note}`);
+        } else {
+          lines.push(`  ${PART_ICONS[ex.part] || ''} ${ex.name}（${ex.part}）`);
+          ex.sets.forEach(st => {
+            let setInfo = `     第${st.setNum}组：`;
+            const parts = [];
+            if (st.weight) parts.push(st.weight + 'kg');
+            if (st.reps) parts.push(st.reps + '次');
+            if (st.note) parts.push(st.note);
+            setInfo += parts.join(' × ') || '未记录';
+            lines.push(setInfo);
+          });
+          const totalVol = ex.sets.reduce((sum, st) => sum + (st.weight || 0) * (st.reps || 0), 0);
+          if (totalVol > 0) {
+            lines.push(`     训练量：${Math.round(totalVol)} kg`);
+          }
+        }
+      });
+
+      lines.push(divider);
+    });
+  }
+
+  const subject = `FitLog 训练数据备份 ${new Date().toLocaleDateString('zh-CN')}`;
+  const body = lines.join('\n');
+
+  // 用 mailto 协议调起系统邮件客户端
+  const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+  closeEmailModal();
+
+  // 打开邮件客户端
+  window.location.href = mailtoUrl;
+}
+
 // ======================== 工具函数 ========================
 
 function formatDate(d) {
@@ -2214,7 +2612,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('visibilitychange', onVisibilityChange);
 
   // 点击弹窗外关闭
-  ['detailModal','dayModal','templateModal'].forEach(id => {
+  ['detailModal','dayModal','templateModal','emailModal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) {
         this.classList.remove('show');
