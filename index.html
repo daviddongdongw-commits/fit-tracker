@@ -251,6 +251,8 @@
     display:none; align-items:flex-end; justify-content:center;
   }
   .modal-overlay.show { display:flex; }
+  .modal-overlay .modal-content { display:none; }
+  .modal-overlay.show .modal-content { display:block; }
   .modal-content {
     background:var(--bg2); border-radius:20px 20px 0 0;
     width:100%; max-width:480px; max-height:85vh;
@@ -276,16 +278,29 @@
   }
 
   /* 自定义动作管理 */
+  .action-group-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; background:var(--bg3);
+    border-radius:10px; margin-bottom:6px; cursor:pointer;
+    font-size:14px; font-weight:600;
+    transition: background .2s;
+  }
+  .action-group-header:hover { background:rgba(255,255,255,.08); }
+  .action-group-header .agh-left { display:flex; align-items:center; gap:8px; }
+  .action-group-header .agh-count { font-size:11px; color:var(--text3); font-weight:400; }
+  .action-group-header .agh-arrow { font-size:12px; color:var(--text3); transition:transform .25s; }
+  .action-group-header.open .agh-arrow { transform:rotate(90deg); }
+  .action-group-body { display:none; padding-left:4px; margin-bottom:8px; }
+  .action-group-body.open { display:block; }
   .action-item {
     display:flex; align-items:center; justify-content:space-between;
-    padding:12px 14px; background:var(--bg3);
-    border-radius:10px; margin-bottom:8px;
+    padding:10px 12px; background:var(--bg3);
+    border-radius:8px; margin-bottom:5px; margin-top:5px;
   }
-  .action-item .a-name { font-size:14px; font-weight:500; }
-  .action-item .a-part { font-size:11px; color:var(--text2); margin-top:2px; }
+  .action-item .a-name { font-size:13px; font-weight:500; }
   .action-item .a-del {
     background:none; border:none; color:var(--red);
-    font-size:13px; cursor:pointer; padding:4px 8px;
+    font-size:12px; cursor:pointer; padding:4px 8px;
   }
 
   /* 空状态 */
@@ -728,12 +743,10 @@
 </div>
 
 <!-- ====== 邮件备份弹窗 ====== -->
-<div class="modal" id="emailModal">
+<div class="modal-overlay" id="emailModal">
   <div class="modal-content">
-    <div class="modal-header">
-      <h3 id="emailModalTitle">📧 邮件备份</h3>
-      <button class="close-btn" onclick="closeEmailModal()">×</button>
-    </div>
+    <div class="modal-handle"></div>
+    <h3 id="emailModalTitle">📧 邮件备份</h3>
     <div style="padding:4px 0;">
       <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">
         输入收件邮箱后，将调起系统邮件客户端，训练数据会作为邮件正文发送。
@@ -2046,9 +2059,9 @@ function showSessionDetail(idx) {
               ${PART_ICONS[ex.part]||''} ${ex.name}
               <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
             </div>
-            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
               ${ex.sets.map(st => `
-                <div style="text-align:center;font-size:12px;padding:6px;background:var(--bg);border-radius:6px;">
+                <div style="text-align:center;font-size:11px;padding:5px 2px;background:var(--bg);border-radius:6px;">
                   <div style="font-weight:600;color:var(--accent2);">${st.weight||'-'}kg</div>
                   <div style="color:var(--text2);">${st.reps||'-'}次</div>
                 </div>
@@ -2414,20 +2427,42 @@ function renderSettings() {
   let html = '';
   for (const [part, actions] of Object.entries(allActions)) {
     const isCustom = data.customActions[part];
+    const colorDot = PART_DOT_COLORS[part] || 'var(--accent)';
+    html += `
+      <div class="action-group" data-part="${part}">
+        <div class="action-group-header" onclick="toggleActionGroup(this)">
+          <div class="agh-left">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${colorDot};"></span>
+            <span>${PART_ICONS[part]||''} ${part}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="agh-count">${actions.length} 个动作</span>
+            <span class="agh-arrow">▶</span>
+          </div>
+        </div>
+        <div class="action-group-body">
+    `;
     actions.forEach(name => {
       const isUserCustom = isCustom && isCustom.includes(name);
       html += `
-        <div class="action-item">
-          <div>
-            <div class="a-name">${PART_ICONS[part]||''} ${name}</div>
-            <div class="a-part">${part}</div>
+          <div class="action-item">
+            <div class="a-name">${name}</div>
+            ${isUserCustom ? `<button class="a-del" onclick="event.stopPropagation();deleteCustomAction('${part}','${name.replace(/'/g,"\\'")}')">删除</button>` : ''}
           </div>
-          ${isUserCustom ? `<button class="a-del" onclick="deleteCustomAction('${part}','${name.replace(/'/g,"\\'")}')">删除</button>` : ''}
-        </div>
       `;
     });
+    html += `
+        </div>
+      </div>
+    `;
   }
   listEl.innerHTML = html || '<div class="empty-state"><p>暂无动作</p></div>';
+}
+
+function toggleActionGroup(headerEl) {
+  headerEl.classList.toggle('open');
+  const body = headerEl.nextElementSibling;
+  body.classList.toggle('open');
 }
 
 function addNewAction() {
