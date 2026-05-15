@@ -190,6 +190,29 @@
   .tag:active { transform:scale(.95); }
   .tag.selected { border-color:var(--accent); background:rgba(108,92,231,.2); color:var(--accent2); }
 
+  /* 训练记录切换栏 */
+  .session-tabs { display:flex; gap:6px; overflow-x:auto; padding:4px 0 8px; -webkit-overflow-scrolling:touch; }
+  .session-tabs::-webkit-scrollbar { display:none; }
+  .session-tab {
+    flex-shrink:0; display:flex; align-items:center; gap:4px;
+    padding:6px 12px; border-radius:20px; font-size:12px; font-weight:600;
+    background:var(--bg3); border:1.5px solid transparent;
+    color:var(--text2); cursor:pointer; white-space:nowrap; transition:.2s;
+  }
+  .session-tab.active { border-color:var(--accent); background:rgba(108,92,231,.2); color:var(--accent2); }
+  .session-tab .tab-del {
+    font-size:10px; color:var(--red); cursor:pointer; margin-left:2px; padding:0 2px;
+    opacity:.6; transition:.2s;
+  }
+  .session-tab .tab-del:hover { opacity:1; }
+  .session-tab-add {
+    flex-shrink:0; display:flex; align-items:center; justify-content:center;
+    padding:6px 14px; border-radius:20px; font-size:13px; font-weight:700;
+    background:rgba(108,92,231,.15); border:1.5px dashed var(--accent);
+    color:var(--accent); cursor:pointer; white-space:nowrap; transition:.2s;
+  }
+  .session-tab-add:hover { background:rgba(108,92,231,.25); }
+
   /* 组数记录行 */
   .set-row {
     display:grid; grid-template-columns: 40px 1fr 1fr 1fr 36px;
@@ -470,10 +493,7 @@
     <!-- 选中日期后的操作栏 -->
     <div id="dayActionBar" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.06);">
       <div id="dayActionInfo" style="font-size:13px;color:var(--text2);margin-bottom:10px;text-align:center;"></div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-primary" style="flex:1;" onclick="startTrainingForSelectedDay()">🏋️ 开始训练</button>
-        <button class="btn btn-outline" style="flex:1;" onclick="editSelectedDayPlan()">✏️ 编辑计划</button>
-      </div>
+      <div id="dayActionButtons" style="display:flex;gap:8px;"></div>
     </div>
   </div>
 
@@ -488,18 +508,34 @@
 
 <!-- ====== 页面2：训练中 ====== -->
 <div class="page" id="pageTraining">
+  <!-- 训练记录切换栏（补录/编辑模式可见） -->
+  <div id="sessionTabsWrap" style="display:none;margin-bottom:4px;">
+    <div class="session-tabs" id="sessionTabs"></div>
+  </div>
+
   <div class="card">
     <div class="card-title">
       <span class="dot" style="background:var(--accent3)"></span>
       <span id="trainingTitle">训练进行中</span>
     </div>
-    <!-- 计时器 -->
-    <div class="timer-display" id="timerDisplay">00:00</div>
-    <div class="timer-controls">
-      <button class="btn btn-sm btn-primary" onclick="toggleTimer()">⏱ 开始计时</button>
-      <button class="btn btn-sm btn-danger" onclick="finishTraining()">✅ 结束训练</button>
+    <!-- 实时训练：计时器 -->
+    <div id="timerSection">
+      <div class="timer-display" id="timerDisplay">00:00</div>
+      <div class="timer-controls">
+        <button class="btn btn-sm btn-primary" onclick="toggleTimer()">⏱ 开始计时</button>
+        <button class="btn btn-sm btn-danger" onclick="finishTraining()">✅ 结束训练</button>
+      </div>
     </div>
-    <button class="btn btn-sm btn-outline btn-full" style="margin-top:10px;color:var(--text3);border-color:rgba(255,255,255,.12);" onclick="cancelTraining()">取消训练</button>
+    <!-- 补录模式：训练时长输入 -->
+    <div id="backfillDurationSection" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:10px;">
+        <label style="font-size:14px;color:var(--text2);">训练时长</label>
+        <input type="number" id="backfillDurationMin" placeholder="0" min="0" style="width:70px;padding:8px 10px;background:var(--bg3);border:1px solid rgba(255,255,255,.1);border-radius:8px;color:var(--text);font-size:18px;text-align:center;outline:none;">
+        <span style="font-size:14px;color:var(--text2);">分钟</span>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="finishTraining()">💾 保存训练记录</button>
+    </div>
+    <button class="btn btn-sm btn-outline btn-full" style="margin-top:10px;color:var(--text3);border-color:rgba(255,255,255,.12);" onclick="cancelTraining()">取消</button>
   </div>
 
   <!-- 选择训练部位 -->
@@ -588,6 +624,10 @@
   </div>
 
   <div class="card-title" style="padding:0 4px 10px;"><span class="dot" style="background:var(--green)"></span> 训练记录</div>
+  <div style="padding:0 4px 10px;">
+    <select id="weekSelect" class="trend-select" onchange="renderHistoryList()" style="margin:0;">
+    </select>
+  </div>
   <div id="historyList"></div>
 </div>
 
@@ -756,6 +796,16 @@
   </div>
 </div>
 
+<!-- ====== 选择训练记录弹窗 ====== -->
+<div class="modal-overlay" id="sessionPickerModal">
+  <div class="modal-content">
+    <div class="modal-handle"></div>
+    <h3>📋 选择训练记录</h3>
+    <div id="sessionPickerList"></div>
+    <button class="btn btn-outline btn-full" style="margin-top:12px;" onclick="document.getElementById('sessionPickerModal').classList.remove('show')">取消</button>
+  </div>
+</div>
+
 <script>
 // ======================== 数据层 ========================
 
@@ -845,6 +895,11 @@ let selectedExercise = '';
 let currentSets = [];
 let setCounter = 0;
 
+// 补录/编辑模式：当天所有训练记录 + 当前活跃索引
+let editingSessions = [];   // [{...session...}, ...]
+let activeSessionIdx = 0;   // 当前正在编辑的索引
+let editingDate = '';       // 当前编辑的日期
+
 // ======================== 训练状态持久化 ========================
 
 // 保存训练状态到 sessionStorage
@@ -924,7 +979,17 @@ function resumeTraining() {
 
     // 恢复 UI 状态
     const state = JSON.parse(sessionStorage.getItem('fitlog_training'));
-    document.getElementById('timerDisplay').textContent = formatTime(getElapsedSeconds());
+    const isBackfill = currentSession && currentSession.isBackfill;
+
+    // 根据是否补录模式恢复不同的顶部 UI
+    if (isBackfill) {
+      document.getElementById('timerSection').style.display = 'none';
+      document.getElementById('backfillDurationSection').style.display = 'block';
+    } else {
+      document.getElementById('timerSection').style.display = 'block';
+      document.getElementById('backfillDurationSection').style.display = 'none';
+      document.getElementById('timerDisplay').textContent = formatTime(getElapsedSeconds());
+    }
     document.getElementById('trainingTitle').textContent = state.trainingTitle || '训练进行中';
 
     // 先隐藏所有表单
@@ -954,8 +1019,8 @@ function resumeTraining() {
     renderExerciseTags();
     updateTrainingBanner();
 
-    // 如果之前在计时，恢复 UI 刷新定时器
-    if (timerRunning && timerStartedAt > 0) {
+    // 如果之前在计时，恢复 UI 刷新定时器（仅非补录模式）
+    if (!isBackfill && timerRunning && timerStartedAt > 0) {
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         document.getElementById('timerDisplay').textContent = formatTime(getElapsedSeconds());
@@ -963,7 +1028,7 @@ function resumeTraining() {
     }
 
     // 更新计时器按钮
-    updateTimerBtn();
+    if (!isBackfill) updateTimerBtn();
   }
 }
 
@@ -1073,7 +1138,7 @@ function renderHome() {
   const totalExercises = data.sessions.reduce((sum,s) => sum + s.exercises.length, 0);
   statsEl.innerHTML = `
     <div class="stat-box"><div class="val">${totalSessions}</div><div class="lbl">总训练次数</div></div>
-    <div class="stat-box"><div class="val">${thisWeek}</div><div class="lbl">本周训练</div></div>
+    <div class="stat-box" style="cursor:pointer;" onclick="switchPage('pageHistory',document.querySelectorAll('.nav-item')[1])"><div class="val">${thisWeek}</div><div class="lbl">本周训练</div></div>
     <div class="stat-box"><div class="val">${totalExercises}</div><div class="lbl">总动作数</div></div>
   `;
 }
@@ -1193,6 +1258,7 @@ function onCalDayClick(day) {
 function renderDayActionBar() {
   const bar = document.getElementById('dayActionBar');
   const info = document.getElementById('dayActionInfo');
+  const btns = document.getElementById('dayActionButtons');
 
   if (selectedCalDay === null) {
     bar.style.display = 'none';
@@ -1220,6 +1286,36 @@ function renderDayActionBar() {
   }
 
   info.innerHTML = `<span style="color:var(--accent2);font-weight:600;">${dateStr}</span> · ${partsStr}<span style="color:var(--text3);">${trainedInfo}</span>`;
+
+  // 判断是否为过去日期（含今天）
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const selectedDate = new Date(calYear, calMonth, selectedCalDay);
+  selectedDate.setHours(0, 0, 0, 0);
+  const isPastOrToday = selectedDate <= today;
+
+  if (isPastOrToday) {
+    if (trainedSessions.length > 0) {
+      // 过去/今天 + 已有记录：编辑训练计划 + 编辑记录
+      btns.innerHTML = `
+        <button class="btn btn-outline" style="flex:1;" onclick="editSelectedDayPlan()">✏️ 编辑计划</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="editExistingSession()">📝 编辑记录</button>
+      `;
+    } else {
+      // 过去/今天 + 无记录：编辑训练计划 + 补录训练
+      btns.innerHTML = `
+        <button class="btn btn-outline" style="flex:1;" onclick="editSelectedDayPlan()">✏️ 编辑计划</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="backfillTrainingForSelectedDay()">📝 补录训练</button>
+      `;
+    }
+  } else {
+    // 未来：开始训练 + 编辑计划
+    btns.innerHTML = `
+      <button class="btn btn-primary" style="flex:1;" onclick="startTrainingForSelectedDay()">🏋️ 开始训练</button>
+      <button class="btn btn-outline" style="flex:1;" onclick="editSelectedDayPlan()">✏️ 编辑计划</button>
+    `;
+  }
+
   bar.style.display = 'block';
 }
 
@@ -1239,6 +1335,204 @@ function editSelectedDayPlan() {
   const day = selectedCalDay;
   selectedCalDay = null;
   editCalendarDay(day);
+}
+
+function backfillTrainingForSelectedDay() {
+  if (selectedCalDay === null) return;
+  const monthPlan = getMonthPlan(calYear, calMonth);
+  const plan = monthPlan[String(selectedCalDay)];
+  if (!plan || !plan.parts || plan.parts.length === 0) return;
+  const trainingDate = new Date(calYear, calMonth, selectedCalDay);
+  startNewSessionForDate(trainingDate, plan.parts, true);
+}
+
+// 保存当前选择弹窗对应的日期，供删除后刷新使用
+let pickerDateIso = '';
+
+function editExistingSession() {
+  if (selectedCalDay === null) return;
+  const data = loadData();
+  const dateIso = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(selectedCalDay).padStart(2,'0')}`;
+  const sessions = data.sessions.filter(s => s.date === dateIso);
+  if (sessions.length === 0) return;
+
+  // 加载当天所有训练记录到编辑模式
+  enterEditMode(dateIso, sessions, data);
+}
+
+// 进入编辑模式：加载当天所有训练记录
+function enterEditMode(dateIso, sessions, data) {
+  editingDate = dateIso;
+  editingSessions = sessions.map(s => JSON.parse(JSON.stringify(s)));
+  // 记录每条记录在 data.sessions 中的全局索引
+  editingSessions.forEach((es, i) => {
+    es._globalIdx = data.sessions.indexOf(sessions[i]);
+  });
+  activeSessionIdx = 0;
+
+  // 切换到训练页
+  document.getElementById('pageHome').classList.remove('active');
+  document.getElementById('pageTraining').classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  // 显示切换栏
+  document.getElementById('sessionTabsWrap').style.display = 'block';
+  // 补录模式 UI
+  document.getElementById('timerSection').style.display = 'none';
+  document.getElementById('backfillDurationSection').style.display = 'block';
+
+  renderSessionTabs();
+  switchToSession(0);
+}
+
+// 渲染切换栏标签
+function renderSessionTabs() {
+  const tabsEl = document.getElementById('sessionTabs');
+  let html = editingSessions.map((s, i) => {
+    const label = s.parts.length > 0 ? s.parts.join('+') : '未设置';
+    const isActive = i === activeSessionIdx;
+    return `
+      <div class="session-tab${isActive ? ' active' : ''}" onclick="switchToSession(${i})">
+        训练${i + 1}: ${label}
+        <span class="tab-del" onclick="event.stopPropagation();removeEditingSession(${i})">✕</span>
+      </div>
+    `;
+  }).join('');
+  html += `<div class="session-tab-add" onclick="addNewEditingSession()">＋ 新增</div>`;
+  tabsEl.innerHTML = html;
+}
+
+// 切换到某条训练记录
+function switchToSession(idx) {
+  if (idx < 0 || idx >= editingSessions.length) return;
+
+  // 先保存当前正在编辑的内容到 editingSessions
+  flushCurrentToEditingSessions();
+
+  activeSessionIdx = idx;
+  const session = editingSessions[idx];
+
+  // 加载到 currentSession
+  currentSession = session;
+  selectedPart = '';
+  selectedExercise = '';
+  currentSets = [];
+  setCounter = 0;
+
+  // 更新 UI
+  document.getElementById('backfillDurationMin').value = Math.round((session.duration || 0) / 60);
+  const trainingLabel = session.parts.length > 0 ? session.parts.join('+') : '未设置';
+  document.getElementById('trainingTitle').textContent = `编辑记录 · ${trainingLabel}（${editingDate}）`;
+  document.getElementById('setsCard').style.display = 'none';
+  document.getElementById('cardioCard').style.display = 'none';
+
+  renderCompletedExercises();
+  renderPartTags();
+  renderExerciseTags();
+  renderSessionTabs();
+}
+
+// 把当前编辑的内容刷到 editingSessions
+function flushCurrentToEditingSessions() {
+  if (!currentSession || activeSessionIdx >= editingSessions.length) return;
+  // 同步时长
+  const minutes = parseInt(document.getElementById('backfillDurationMin').value) || 0;
+  currentSession.duration = minutes * 60;
+  // 写回数组
+  editingSessions[activeSessionIdx] = currentSession;
+}
+
+// 新增一条训练记录
+function addNewEditingSession() {
+  flushCurrentToEditingSessions();
+
+  const newSession = {
+    id: Date.now(),
+    date: editingDate,
+    startTime: new Date().toISOString(),
+    parts: [],
+    exercises: [],
+    duration: 0,
+    isBackfill: true
+  };
+  editingSessions.push(newSession);
+  switchToSession(editingSessions.length - 1);
+}
+
+// 删除一条训练记录
+function removeEditingSession(idx) {
+  // 先把当前编辑中的数据刷回去
+  flushCurrentToEditingSessions();
+
+  if (editingSessions.length <= 1) {
+    if (!confirm('这是最后一条训练记录，确定删除？删除后将返回首页。')) return;
+    const data = loadData();
+    const globalIdx = editingSessions[0]._globalIdx;
+    if (globalIdx !== undefined && globalIdx !== -1) {
+      data.sessions.splice(globalIdx, 1);
+      saveData(data);
+    }
+    editingSessions = [];
+    currentSession = null;
+    document.getElementById('sessionTabsWrap').style.display = 'none';
+    switchPage('pageHome', document.querySelector('.nav-item'));
+    return;
+  }
+
+  const target = editingSessions[idx];
+  if (!confirm(`确定删除训练${idx + 1}（${target.parts.length > 0 ? target.parts.join('+') : '未设置'}）？`)) return;
+
+  // 从 localStorage 中删除
+  const data = loadData();
+  const globalIdx = target._globalIdx;
+  if (globalIdx !== undefined && globalIdx !== -1) {
+    data.sessions.splice(globalIdx, 1);
+    saveData(data);
+  }
+
+  // 从 editingSessions 中删除
+  editingSessions.splice(idx, 1);
+
+  // 更新剩余记录的全局索引（splice 后排在前面的不受影响，后面的 -1）
+  editingSessions.forEach(s => {
+    if (s._globalIdx !== undefined && s._globalIdx > globalIdx) {
+      s._globalIdx--;
+    }
+  });
+
+  // 新增的记录（没有 _globalIdx）不需要更新
+
+  // 决定切换到哪条
+  let newIdx;
+  if (idx < activeSessionIdx) {
+    // 删的是前面的，当前活跃索引前移
+    newIdx = activeSessionIdx - 1;
+  } else if (idx === activeSessionIdx) {
+    // 删的是当前的，切换到同位置或最后一条
+    newIdx = Math.min(idx, editingSessions.length - 1);
+  } else {
+    // 删的是后面的，当前活跃索引不变
+    newIdx = activeSessionIdx;
+  }
+
+  activeSessionIdx = newIdx;
+  currentSession = editingSessions[newIdx];
+  selectedPart = '';
+  selectedExercise = '';
+  currentSets = [];
+  setCounter = 0;
+
+  // 更新 UI（不经过 switchToSession 避免再次 flush）
+  document.getElementById('backfillDurationMin').value = Math.round((currentSession.duration || 0) / 60);
+  const trainingLabel = currentSession.parts.length > 0 ? currentSession.parts.join('+') : '未设置';
+  document.getElementById('trainingTitle').textContent = `编辑记录 · ${trainingLabel}（${editingDate}）`;
+  document.getElementById('setsCard').style.display = 'none';
+  document.getElementById('cardioCard').style.display = 'none';
+
+  renderCompletedExercises();
+  renderPartTags();
+  renderExerciseTags();
+  renderSessionTabs();
 }
 
 // ======================== 日期训练计划编辑 ========================
@@ -1390,7 +1684,7 @@ function startNewSession() {
   startNewSessionForDate(today, parts);
 }
 
-function startNewSessionForDate(date, presetParts) {
+function startNewSessionForDate(date, presetParts, isBackfill) {
   const monthPlan = getMonthPlan(date.getFullYear(), date.getMonth());
   const dayPlan = monthPlan[String(date.getDate())];
   const dayNames = ['日','一','二','三','四','五','六'];
@@ -1401,7 +1695,8 @@ function startNewSessionForDate(date, presetParts) {
     startTime: new Date().toISOString(),
     parts: presetParts ? [...presetParts] : [],
     exercises: [],
-    duration: 0
+    duration: 0,
+    isBackfill: !!isBackfill
   };
 
   timerSeconds = 0;
@@ -1420,14 +1715,25 @@ function startNewSessionForDate(date, presetParts) {
   document.getElementById('pageTraining').classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-  document.getElementById('timerDisplay').textContent = '00:00';
+  // 根据是否补录模式切换计时器/时长输入
+  if (isBackfill) {
+    document.getElementById('timerSection').style.display = 'none';
+    document.getElementById('backfillDurationSection').style.display = 'block';
+    document.getElementById('backfillDurationMin').value = '';
+  } else {
+    document.getElementById('timerSection').style.display = 'block';
+    document.getElementById('backfillDurationSection').style.display = 'none';
+    document.getElementById('timerDisplay').textContent = '00:00';
+  }
+
   const trainingLabel = (dayPlan && dayPlan.parts && dayPlan.parts.length > 0)
     ? dayPlan.parts.join('+')
     : (presetParts && presetParts.length > 0)
       ? presetParts.join('+')
-      : `${calMonth+1}月${date.getDate()}日`;
+      : `${date.getMonth()+1}月${date.getDate()}日`;
   const dateHint = formatDate(date) === formatDate(new Date()) ? '' : `（${formatDate(date)}）`;
-  document.getElementById('trainingTitle').textContent = `训练进行中 · ${trainingLabel} ${dateHint}`;
+  const modeLabel = isBackfill ? '补录训练' : '训练进行中';
+  document.getElementById('trainingTitle').textContent = `${modeLabel} · ${trainingLabel} ${dateHint}`;
   document.getElementById('setsCard').style.display = 'none';
   document.getElementById('cardioCard').style.display = 'none';
   document.getElementById('completedExercises').innerHTML = '';
@@ -1824,10 +2130,16 @@ function renderCompletedExercises() {
       const c = ex.cardio;
       return `
         <div class="card" style="border-left:3px solid var(--green);">
-          <div class="card-title">
-            <span class="dot" style="background:var(--green)"></span>
-            ${ex.name}
-            <span style="font-size:11px;color:var(--text2);font-weight:400;">（有氧）</span>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <span class="dot" style="background:var(--green)"></span>
+              ${ex.name}
+              <span style="font-size:11px;color:var(--text2);font-weight:400;">（有氧）</span>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-sm btn-outline" style="font-size:11px;padding:3px 8px;" onclick="editCompletedExercise(${i})">✏️</button>
+              <button class="btn btn-sm btn-outline" style="font-size:11px;padding:3px 8px;color:var(--red);border-color:var(--red);" onclick="deleteCompletedExercise(${i})">🗑️</button>
+            </div>
           </div>
           <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:13px;">
             ${c.distance ? `<div style="background:var(--bg3);border-radius:8px;padding:8px 12px;text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--accent2);">${c.distance}</div><div style="font-size:10px;color:var(--text3);">公里</div></div>` : ''}
@@ -1843,10 +2155,16 @@ function renderCompletedExercises() {
       // 力量训练显示
       return `
         <div class="card" style="border-left:3px solid var(--accent);">
-          <div class="card-title">
-            <span class="dot" style="background:var(--green)"></span>
-            ${ex.name}
-            <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <span class="dot" style="background:var(--green)"></span>
+              ${ex.name}
+              <span style="font-size:11px;color:var(--text2);font-weight:400;">（${ex.part}）</span>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-sm btn-outline" style="font-size:11px;padding:3px 8px;" onclick="editCompletedExercise(${i})">✏️</button>
+              <button class="btn btn-sm btn-outline" style="font-size:11px;padding:3px 8px;color:var(--red);border-color:var(--red);" onclick="deleteCompletedExercise(${i})">🗑️</button>
+            </div>
           </div>
           ${ex.sets.map(s => `
             <div style="display:flex;gap:12px;font-size:13px;padding:4px 0;color:var(--text2);">
@@ -1862,20 +2180,113 @@ function renderCompletedExercises() {
   }).join('');
 }
 
+function deleteCompletedExercise(idx) {
+  if (!currentSession) return;
+  const ex = currentSession.exercises[idx];
+  if (!ex) return;
+  if (!confirm(`确定删除动作"${ex.name}"？`)) return;
+  currentSession.exercises.splice(idx, 1);
+  renderCompletedExercises();
+  saveTrainingState();
+}
+
+function editCompletedExercise(idx) {
+  if (!currentSession) return;
+  const ex = currentSession.exercises[idx];
+  if (!ex) return;
+
+  // 先从已完成列表中移除
+  currentSession.exercises.splice(idx, 1);
+  renderCompletedExercises();
+
+  // 设置当前编辑状态
+  selectedPart = ex.part;
+  selectedExercise = ex.name;
+
+  // 高亮部位标签
+  renderPartTags();
+
+  if (ex.cardio) {
+    // 有氧：加载到有氧表单
+    document.getElementById('cardioExName').textContent = ex.name;
+    document.getElementById('cardioCard').style.display = 'block';
+    document.getElementById('setsCard').style.display = 'none';
+    document.getElementById('cardioDistance').value = ex.cardio.distance || '';
+    document.getElementById('cardioDuration').value = ex.cardio.durationMin || '';
+    document.getElementById('cardioPace').value = ex.cardio.pace || '';
+    document.getElementById('cardioHr').value = ex.cardio.hr || '';
+    document.getElementById('cardioCalories').value = ex.cardio.calories || '';
+    document.getElementById('cardioNote').value = ex.cardio.note || '';
+  } else {
+    // 力量：加载到组数表单
+    document.getElementById('currentExName').textContent = ex.name;
+    document.getElementById('setsCard').style.display = 'block';
+    document.getElementById('cardioCard').style.display = 'none';
+    currentSets = ex.sets.map(s => ({...s}));
+    setCounter = currentSets.length;
+    renderSets();
+  }
+
+  renderExerciseTags();
+  saveTrainingState();
+}
+
 // 结束训练
 function finishTraining() {
-  if (currentSession.exercises.length === 0) {
+  if (currentSession.exercises.length === 0 && editingSessions.length <= 1) {
     alert('还没有记录任何训练动作哦！');
     return;
   }
-  if (!confirm('确定结束本次训练？')) return;
+
+  // 编辑模式（有多条记录切换栏）
+  if (editingSessions.length > 0 && document.getElementById('sessionTabsWrap').style.display !== 'none') {
+    if (!confirm('确定保存当天所有训练记录？')) return;
+    flushCurrentToEditingSessions();
+
+    const data = loadData();
+    // 更新/新增每条记录
+    editingSessions.forEach(es => {
+      // 清理内部标记
+      const clean = {...es};
+      delete clean._globalIdx;
+      clean.endTime = new Date().toISOString();
+
+      if (es._globalIdx !== undefined && es._globalIdx !== -1) {
+        // 已有记录：替换
+        data.sessions[es._globalIdx] = clean;
+      } else {
+        // 新增记录：追加
+        data.sessions.push(clean);
+      }
+    });
+    saveData(data);
+
+    editingSessions = [];
+    currentSession = null;
+    document.getElementById('sessionTabsWrap').style.display = 'none';
+    clearTrainingState();
+    switchPage('pageHome', document.querySelector('.nav-item'));
+    return;
+  }
+
+  // 普通模式（实时训练或单条补录）
+  const isBackfill = currentSession.isBackfill;
+  const confirmMsg = isBackfill ? '确定保存此训练记录？' : '确定结束本次训练？';
+  if (!confirm(confirmMsg)) return;
 
   // 计算最终时长
-  let elapsed = getElapsedSeconds();
-
-  // 如果计时器没有启动过（用户没点计时），用 startTime 到现在的差值兜底
-  if (elapsed === 0 && currentSession.startTime) {
-    elapsed = Math.floor((Date.now() - new Date(currentSession.startTime).getTime()) / 1000);
+  let elapsed;
+  if (isBackfill) {
+    // 补录模式：从输入框读取分钟数
+    const minutes = parseInt(document.getElementById('backfillDurationMin').value) || 0;
+    elapsed = minutes * 60;
+  } else {
+    // 实时训练：用计时器
+    elapsed = getElapsedSeconds();
+    // 如果计时器没有启动过（用户没点计时），用 startTime 到现在的差值兜底
+    if (elapsed === 0 && currentSession.startTime) {
+      elapsed = Math.floor((Date.now() - new Date(currentSession.startTime).getTime()) / 1000);
+    }
   }
 
   currentSession.duration = elapsed;
@@ -1886,7 +2297,13 @@ function finishTraining() {
   timerRunning = false;
 
   const data = loadData();
-  data.sessions.push(currentSession);
+  if (currentSession.editIndex !== undefined && currentSession.editIndex !== null) {
+    // 编辑模式：替换原有记录
+    data.sessions[currentSession.editIndex] = currentSession;
+  } else {
+    // 新增模式：追加记录
+    data.sessions.push(currentSession);
+  }
   saveData(data);
 
   currentSession = null;
@@ -1896,7 +2313,10 @@ function finishTraining() {
 
 // 取消训练（不保存数据，直接返回首页）
 function cancelTraining() {
-  if (currentSession && currentSession.exercises.length > 0) {
+  const isEditMode = editingSessions.length > 0 && document.getElementById('sessionTabsWrap').style.display !== 'none';
+  if (isEditMode) {
+    if (!confirm('确定取消？所有未保存的修改将丢失。')) return;
+  } else if (currentSession && currentSession.exercises.length > 0) {
     if (!confirm('已记录的动作数据将丢失，确定取消训练？')) return;
   }
   clearInterval(timerInterval);
@@ -1904,15 +2324,51 @@ function cancelTraining() {
   timerStartedAt = 0;
   timerSeconds = 0;
   currentSession = null;
+  editingSessions = [];
+  activeSessionIdx = 0;
+  document.getElementById('sessionTabsWrap').style.display = 'none';
   clearTrainingState();
   switchPage('pageHome', document.querySelector('.nav-item'));
 }
 
 // ======================== 历史记录 ========================
 
+function getWeekRange(dateStr) {
+  // 返回某个日期所在周的周一日期字符串 YYYY-MM-DD
+  const d = new Date(dateStr);
+  const day = d.getDay();
+  const diff = day === 0 ? 6 : day - 1; // 周一为一周起始
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - diff);
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, '0');
+  const dd = String(monday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function getWeekLabel(mondayStr) {
+  // "2025-05-12" → "5月12日 - 5月18日"
+  const mon = new Date(mondayStr);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  const fmt = (d) => `${d.getMonth()+1}月${d.getDate()}日`;
+  return `${fmt(mon)} - ${fmt(sun)}`;
+}
+
+function getCurrentWeekMonday() {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? 6 : day - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diff);
+  const y = monday.getFullYear();
+  const m = String(monday.getMonth() + 1).padStart(2, '0');
+  const dd = String(monday.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 function renderHistory() {
   const data = loadData();
-  const sessions = [...data.sessions].reverse();
 
   // 统计
   const statsEl = document.getElementById('historyStats');
@@ -1927,17 +2383,56 @@ function renderHistory() {
     <div class="stat-box"><div class="val">${Math.round(totalWeight)}</div><div class="lbl">总吨位(kg)</div></div>
   `;
 
-  // 记录列表
+  // 填充周选择下拉
+  const weekSet = new Set();
+  data.sessions.forEach(s => {
+    if (s.date) weekSet.add(getWeekRange(s.date));
+  });
+  // 加上当前周
+  const curMonday = getCurrentWeekMonday();
+  weekSet.add(curMonday);
+
+  const weeks = Array.from(weekSet).sort().reverse();
+  const selectEl = document.getElementById('weekSelect');
+  const prevVal = selectEl.value;
+  selectEl.innerHTML = weeks.map(w =>
+    `<option value="${w}"${w === curMonday ? ' selected' : ''}>${getWeekLabel(w)}</option>`
+  ).join('');
+  // 恢复之前的选择（如果还有效）
+  if (prevVal && weeks.includes(prevVal)) selectEl.value = prevVal;
+
+  renderHistoryList();
+}
+
+function renderHistoryList() {
+  const data = loadData();
+  const selectEl = document.getElementById('weekSelect');
+  const selectedMonday = selectEl.value;
+  if (!selectedMonday) return;
+
+  // 计算选中周的周一和周日
+  const monDate = new Date(selectedMonday);
+  const sunDate = new Date(monDate);
+  sunDate.setDate(monDate.getDate() + 6);
+  sunDate.setHours(23, 59, 59, 999);
+  monDate.setHours(0, 0, 0, 0);
+
+  // 筛选该周的记录
+  const filtered = data.sessions.filter(s => {
+    const d = new Date(s.date);
+    return d >= monDate && d <= sunDate;
+  }).reverse();
+
   const listEl = document.getElementById('historyList');
-  if (sessions.length === 0) {
-    listEl.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>还没有训练记录<br>开始你的第一次训练吧！</p></div>';
+  if (filtered.length === 0) {
+    listEl.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>本周暂无训练记录</p></div>';
     return;
   }
-  listEl.innerHTML = sessions.map((s,i) => {
-    const realIdx = sessions.length - 1 - i;
+  listEl.innerHTML = filtered.map(s => {
+    const idx = data.sessions.indexOf(s);
     const icon = s.parts.some(p=>['胸','背','腿','肩','二头','三头'].includes(p)) ? '🏋️' : '🏃';
     return `
-      <div class="history-item" onclick="showSessionDetail(${realIdx})">
+      <div class="history-item" onclick="showSessionDetail(${idx})">
         <div class="h-icon ${s.parts[0]?PART_COLORS[s.parts[0]]||'':'part-cardio'}">${icon}</div>
         <div class="h-info">
           <div class="h-date">${s.date}</div>
@@ -2643,7 +3138,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('visibilitychange', onVisibilityChange);
 
   // 点击弹窗外关闭
-  ['detailModal','dayModal','templateModal','emailModal'].forEach(id => {
+  ['detailModal','dayModal','templateModal','emailModal','sessionPickerModal'].forEach(id => {
     document.getElementById(id).addEventListener('click', function(e) {
       if (e.target === this) {
         this.classList.remove('show');
