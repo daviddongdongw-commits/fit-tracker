@@ -349,6 +349,7 @@
   .part-shoulder { background:rgba(253,203,110,.2); color:#ffeaa7; }
   .part-bicep { background:rgba(116,185,255,.2); color:#74b9ff; }
   .part-tricep { background:rgba(225,112,85,.2); color:#fab1a0; }
+  .part-abs { background:rgba(0,206,201,.2); color:#00cec9; }
   .part-cardio { background:rgba(162,155,254,.2); color:#dfe6e9; }
 
   /* 进度提升提示 */
@@ -656,6 +657,7 @@
         <option value="肩">肩</option>
         <option value="二头">二头</option>
         <option value="三头">三头</option>
+        <option value="腹肌">腹肌</option>
         <option value="有氧">有氧</option>
       </select>
     </div>
@@ -816,6 +818,7 @@ const DEFAULT_EXERCISES = {
   '肩': ['哑铃推举', '杠铃推举', '侧平举', '前平举', '面拉', '耸肩'],
   '二头': ['杠铃弯举', '哑铃弯举', '锤式弯举', '集中弯举', '牧师椅弯举'],
   '三头': ['绳索下压', '窄距卧推', '仰卧臂屈伸', '过头臂屈伸', '双杠臂屈伸'],
+  '腹肌': ['卷腹', '仰卧起坐', '平板支撑', '悬垂举腿', '俄罗斯转体', '反向卷腹'],
   '有氧': ['跑步', '椭圆机', '动感单车', '跳绳', '划船机', '爬楼梯']
 };
 
@@ -832,16 +835,16 @@ const DEFAULT_PLAN = [
 // 部位对应的圆点颜色
 const PART_DOT_COLORS = {
   '胸':'#6c5ce7','背':'#00b894','腿':'#fd79a8','肩':'#fdcb6e',
-  '二头':'#74b9ff','三头':'#e17055','有氧':'#a29bfe'
+  '二头':'#74b9ff','三头':'#e17055','腹肌':'#00cec9','有氧':'#a29bfe'
 };
 
 const PART_ICONS = {
-  '胸':'🏋️','背':'💪','腿':'🦵','肩':'🙆','二头':'💪','三头':'🦾','有氧':'🏃'
+  '胸':'🏋️','背':'💪','腿':'🦵','肩':'🙆','二头':'💪','三头':'🦾','腹肌':'🧘','有氧':'🏃'
 };
 
 const PART_COLORS = {
   '胸':'part-chest','背':'part-back','腿':'part-leg','肩':'part-shoulder',
-  '二头':'part-bicep','三头':'part-tricep','有氧':'part-cardio'
+  '二头':'part-bicep','三头':'part-tricep','腹肌':'part-abs','有氧':'part-cardio'
 };
 
 // 从 localStorage 读取或初始化
@@ -876,7 +879,7 @@ function saveMonthPlan(year, month, plan) {
 }
 
 // 所有可能的部位列表
-const ALL_PARTS = ['胸','背','腿','肩','二头','三头','有氧'];
+const ALL_PARTS = ['胸','背','腿','肩','二头','三头','腹肌','有氧'];
 
 // ======================== 全局状态 ========================
 
