@@ -569,10 +569,13 @@
       📋 已填入上次训练数据，可直接修改后保存
     </div>
     <div style="font-size:11px;color:var(--text3);display:grid;grid-template-columns:40px 1fr 1fr 1fr 36px;gap:8px;padding:0 0 6px;">
-      <span>组</span><span>重量(kg)</span><span>次数</span><span>备注</span><span></span>
+      <span>组</span><span id="weightHeader">重量(kg)</span><span>次数</span><span>备注</span><span></span>
     </div>
     <div id="setsList"></div>
-    <button class="btn btn-sm btn-success btn-full" style="margin-top:10px;" onclick="saveExerciseSets()">💾 保存此动作</button>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button id="unitToggleBtn" class="btn btn-sm btn-outline" style="flex-shrink:0;padding:6px 12px;font-size:12px;" onclick="toggleInputUnit()">切lbs</button>
+      <button class="btn btn-sm btn-success btn-full" onclick="saveExerciseSets()">💾 保存此动作</button>
+    </div>
   </div>
 
   <!-- 有氧训练记录 -->
@@ -640,6 +643,16 @@
     <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">在首页日历中点击具体日期即可配置该天的训练部位</p>
     <button class="btn btn-outline btn-full" onclick="applyWeeklyTemplate()" style="margin-bottom:8px;">📋 按周模板批量填充本月</button>
     <button class="btn btn-danger btn-sm btn-full" onclick="clearMonthPlan()">🗑️ 清空本月计划</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="dot" style="background:var(--accent)"></span> 重量单位</div>
+    <p style="font-size:12px;color:var(--text2);margin-bottom:12px;">设置默认重量单位，统计和趋势图统一使用此单位显示</p>
+    <div style="display:flex;gap:10px;">
+      <button id="unitBtnKg" class="btn btn-sm btn-full" onclick="changeGlobalUnit('kg')" style="padding:10px;">⚖️ 公斤 (kg)</button>
+      <button id="unitBtnLbs" class="btn btn-sm btn-full" onclick="changeGlobalUnit('lbs')" style="padding:10px;">⚖️ 磅 (lbs)</button>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text3);">💡 每个动作会记住上次使用的单位，下次自动切换</div>
   </div>
 
   <div class="card">
@@ -881,6 +894,46 @@ function saveMonthPlan(year, month, plan) {
 // 所有可能的部位列表
 const ALL_PARTS = ['胸','背','腿','肩','二头','三头','腹肌','有氧'];
 
+// ======================== 重量单位系统 ========================
+
+const KG_TO_LBS = 2.20462;
+const LBS_TO_KG = 1 / KG_TO_LBS;
+
+// 获取全局默认单位（kg 或 lbs）
+function getGlobalUnit() {
+  return localStorage.getItem('fitlog_unit') || 'kg';
+}
+function setGlobalUnit(unit) {
+  localStorage.setItem('fitlog_unit', unit);
+}
+
+// 获取某个动作上次记录使用的单位
+function getExerciseUnit(exerciseName) {
+  const map = JSON.parse(localStorage.getItem('fitlog_exercise_units') || '{}');
+  return map[exerciseName] || getGlobalUnit();
+}
+function setExerciseUnit(exerciseName, unit) {
+  const map = JSON.parse(localStorage.getItem('fitlog_exercise_units') || '{}');
+  map[exerciseName] = unit;
+  localStorage.setItem('fitlog_exercise_units', JSON.stringify(map));
+}
+
+// 将重量从原始单位转换为全局单位（用于统计和趋势图）
+function convertWeight(weight, fromUnit, toUnit) {
+  if (!fromUnit || !toUnit || fromUnit === toUnit || !weight) return weight;
+  if (fromUnit === 'lbs' && toUnit === 'kg') return weight * LBS_TO_KG;
+  if (fromUnit === 'kg' && toUnit === 'lbs') return weight * KG_TO_LBS;
+  return weight;
+}
+
+// 重量显示（统一转换为全局单位）
+function displayWeight(weight, originalUnit) {
+  if (!weight) return '-';
+  const gu = getGlobalUnit();
+  const converted = convertWeight(weight, originalUnit || 'kg', gu);
+  return (Math.round(converted * 10) / 10) + gu;
+}
+
 // ======================== 全局状态 ========================
 
 let calYear, calMonth;       // 日历当前显示的年月
@@ -897,6 +950,7 @@ let selectedPart = '';
 let selectedExercise = '';
 let currentSets = [];
 let setCounter = 0;
+let currentWeightUnit = 'kg';  // 当前输入使用的单位
 
 // 补录/编辑模式：当天所有训练记录 + 当前活跃索引
 let editingSessions = [];   // [{...session...}, ...]
@@ -1950,7 +2004,8 @@ function selectExercise(name) {
     currentSets = [];
     setCounter = 0;
   } else {
-    // 力量训练
+    // 力量训练 — 自动使用该动作记忆的单位
+    currentWeightUnit = getExerciseUnit(name);
     currentSets = [];
     setCounter = 0;
     document.getElementById('currentExName').textContent = name;
@@ -2011,6 +2066,9 @@ function removeSet(idx) {
 }
 function renderSets() {
   const el = document.getElementById('setsList');
+  // 更新表头显示当前单位
+  const headerEl = document.getElementById('weightHeader');
+  if (headerEl) headerEl.textContent = `重量(${currentWeightUnit})`;
   el.innerHTML = currentSets.map((s,i) => `
     <div class="set-row">
       <div class="set-num">${i+1}</div>
@@ -2020,6 +2078,25 @@ function renderSets() {
       <button class="del-set" onclick="removeSet(${i})">×</button>
     </div>
   `).join('');
+  // 更新单位切换按钮
+  const toggleEl = document.getElementById('unitToggleBtn');
+  if (toggleEl) toggleEl.textContent = currentWeightUnit === 'kg' ? '切lbs' : '切kg';
+}
+
+// 切换输入单位并转换已有值
+function toggleInputUnit() {
+  const oldUnit = currentWeightUnit;
+  const newUnit = oldUnit === 'kg' ? 'lbs' : 'kg';
+  // 将已有重量值转换为新单位
+  currentSets.forEach(s => {
+    if (s.weight) {
+      s.weight = Math.round(convertWeight(parseFloat(s.weight), oldUnit, newUnit) * 10) / 10;
+      // 如果是整数，不保留小数
+      if (s.weight === Math.floor(s.weight)) s.weight = Math.floor(s.weight);
+    }
+  });
+  currentWeightUnit = newUnit;
+  renderSets();
 }
 
 function saveExerciseSets() {
@@ -2027,9 +2104,13 @@ function saveExerciseSets() {
   const validSets = currentSets.filter(s => s.weight || s.reps);
   if (validSets.length === 0) { alert('请至少填写一组数据'); return; }
 
+  // 记住该动作使用的单位
+  setExerciseUnit(selectedExercise, currentWeightUnit);
+
   currentSession.exercises.push({
     name: selectedExercise,
     part: selectedPart,
+    unit: currentWeightUnit,  // 记录该动作使用的单位
     sets: validSets.map((s,i) => ({
       setNum: i+1,
       weight: parseFloat(s.weight)||0,
@@ -2046,6 +2127,7 @@ function saveExerciseSets() {
   selectedExercise = '';
   currentSets = [];
   setCounter = 0;
+  currentWeightUnit = getGlobalUnit();  // 重置为全局默认
   document.getElementById('setsCard').style.display = 'none';
   renderExerciseTags();
 
@@ -2172,7 +2254,7 @@ function renderCompletedExercises() {
           ${ex.sets.map(s => `
             <div style="display:flex;gap:12px;font-size:13px;padding:4px 0;color:var(--text2);">
               <span>第${s.setNum}组</span>
-              ${s.weight?`<span>${s.weight}kg</span>`:''}
+              ${s.weight?`<span>${displayWeight(s.weight, ex.unit)}</span>`:''}
               ${s.reps?`<span>${s.reps}次</span>`:''}
               ${s.note?`<span style="color:var(--text3)">${s.note}</span>`:''}
             </div>
@@ -2221,7 +2303,8 @@ function editCompletedExercise(idx) {
     document.getElementById('cardioCalories').value = ex.cardio.calories || '';
     document.getElementById('cardioNote').value = ex.cardio.note || '';
   } else {
-    // 力量：加载到组数表单
+    // 力量：加载到组数表单，恢复原始单位
+    currentWeightUnit = ex.unit || 'kg';
     document.getElementById('currentExName').textContent = ex.name;
     document.getElementById('setsCard').style.display = 'block';
     document.getElementById('cardioCard').style.display = 'none';
@@ -2378,12 +2461,16 @@ function renderHistory() {
   const totalSessions = data.sessions.length;
   const totalDuration = data.sessions.reduce((s,x)=>s+x.duration,0);
   const totalSets = data.sessions.reduce((s,x)=>s+x.exercises.reduce((s2,e)=>s2+e.sets.length,0),0);
-  const totalWeight = data.sessions.reduce((s,x)=>s+x.exercises.reduce((s2,e)=>s2+e.sets.reduce((s3,st)=>s3+st.weight*st.reps,0),0),0);
+  const totalWeight = data.sessions.reduce((s,x)=>s+x.exercises.reduce((s2,e)=>s2+e.sets.reduce((s3,st)=>{
+    const w = convertWeight(st.weight||0, e.unit||'kg', getGlobalUnit());
+    return s3 + w * (st.reps||0);
+  },0),0),0);
+  const gu = getGlobalUnit();
   statsEl.innerHTML = `
     <div class="stat-box"><div class="val">${totalSessions}</div><div class="lbl">训练次数</div></div>
     <div class="stat-box"><div class="val">${Math.round(totalDuration/3600*10)/10}</div><div class="lbl">总时长(h)</div></div>
     <div class="stat-box"><div class="val">${totalSets}</div><div class="lbl">总组数</div></div>
-    <div class="stat-box"><div class="val">${Math.round(totalWeight)}</div><div class="lbl">总吨位(kg)</div></div>
+    <div class="stat-box"><div class="val">${Math.round(totalWeight)}</div><div class="lbl">总吨位(${gu})</div></div>
   `;
 
   // 填充周选择下拉
@@ -2454,11 +2541,12 @@ function renderProgressTips(data) {
 
   // 分析每个动作的最近进步情况
   const exerciseHistory = {};
+  const gu = getGlobalUnit();
   data.sessions.forEach(s => {
     s.exercises.forEach(ex => {
       if (!exerciseHistory[ex.name]) exerciseHistory[ex.name] = [];
-      const maxWeight = Math.max(...ex.sets.map(st => st.weight || 0));
-      const totalVol = ex.sets.reduce((s,st) => s + (st.weight||0)*(st.reps||0), 0);
+      const maxWeight = Math.max(...ex.sets.map(st => convertWeight(st.weight || 0, ex.unit||'kg', gu)));
+      const totalVol = ex.sets.reduce((s,st) => s + convertWeight(st.weight||0, ex.unit||'kg', gu)*(st.reps||0), 0);
       exerciseHistory[ex.name].push({
         date: s.date,
         maxWeight,
@@ -2476,18 +2564,18 @@ function renderProgressTips(data) {
     if (last.maxWeight > prev.maxWeight) {
       tips.push({
         title: `🎉 ${name} 重量提升！`,
-        text: `上次 ${prev.maxWeight}kg → 本次 ${last.maxWeight}kg，继续保持！`
+        text: `上次 ${Math.round(prev.maxWeight*10)/10}${gu} → 本次 ${Math.round(last.maxWeight*10)/10}${gu}，继续保持！`
       });
     } else if (last.maxWeight < prev.maxWeight) {
       tips.push({
         title: `📉 ${name} 重量下降`,
-        text: `上次 ${prev.maxWeight}kg → 本次 ${last.maxWeight}kg，注意休息恢复`
+        text: `上次 ${Math.round(prev.maxWeight*10)/10}${gu} → 本次 ${Math.round(last.maxWeight*10)/10}${gu}，注意休息恢复`
       });
     }
     if (last.totalVol > prev.totalVol * 1.1) {
       tips.push({
         title: `💪 ${name} 训练量增加`,
-        text: `总训练量从 ${Math.round(prev.totalVol)}kg 提升到 ${Math.round(last.totalVol)}kg`
+        text: `总训练量从 ${Math.round(prev.totalVol)}${gu} 提升到 ${Math.round(last.totalVol)}${gu}`
       });
     }
   }
@@ -2515,6 +2603,7 @@ function showSessionDetail(idx) {
   const s = data.sessions[idx];
   if (!s) return;
 
+  const gu = getGlobalUnit();
   document.getElementById('modalTitle').textContent = `${s.date} 训练详情`;
   document.getElementById('modalBody').innerHTML = `
     <div style="margin-bottom:12px;font-size:13px;color:var(--text2);">
@@ -2553,14 +2642,14 @@ function showSessionDetail(idx) {
             <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
               ${ex.sets.map(st => `
                 <div style="text-align:center;font-size:11px;padding:5px 2px;background:var(--bg);border-radius:6px;">
-                  <div style="font-weight:600;color:var(--accent2);">${st.weight||'-'}kg</div>
+                  <div style="font-weight:600;color:var(--accent2);">${displayWeight(st.weight, ex.unit)}</div>
                   <div style="color:var(--text2);">${st.reps||'-'}次</div>
                 </div>
               `).join('')}
             </div>
-            ${ex.sets.reduce((sum,st) => sum + (st.weight||0)*(st.reps||0), 0) > 0 ?
+            ${ex.sets.reduce((sum,st) => sum + convertWeight(st.weight||0, ex.unit||'kg', gu)*(st.reps||0), 0) > 0 ?
               `<div style="text-align:right;font-size:11px;color:var(--text2);margin-top:6px;">
-                训练量：${Math.round(ex.sets.reduce((sum,st) => sum + (st.weight||0)*(st.reps||0), 0))}kg
+                训练量：${Math.round(ex.sets.reduce((sum,st) => sum + convertWeight(st.weight||0, ex.unit||'kg', gu)*(st.reps||0), 0))}${gu}
               </div>` : ''
             }
           </div>
@@ -2650,14 +2739,15 @@ function onTrendExerciseChange() {
 
 function renderTrendData(exerciseName) {
   const data = loadData();
+  const gu = getGlobalUnit();
 
-  // 汇总该动作的所有历史数据
+  // 汇总该动作的所有历史数据（统一换算为全局单位）
   const history = [];
   data.sessions.forEach(s => {
     s.exercises.forEach(ex => {
       if (ex.name === exerciseName) {
-        const maxWeight = Math.max(...ex.sets.map(st => st.weight || 0));
-        const totalVol = ex.sets.reduce((sum, st) => sum + (st.weight || 0) * (st.reps || 0), 0);
+        const maxWeight = Math.max(...ex.sets.map(st => convertWeight(st.weight || 0, ex.unit||'kg', gu)));
+        const totalVol = ex.sets.reduce((sum, st) => sum + convertWeight(st.weight || 0, ex.unit||'kg', gu) * (st.reps || 0), 0);
         const totalSets = ex.sets.length;
         history.push({
           date: s.date,
@@ -2739,7 +2829,7 @@ function drawTrendChart(history) {
     ctx.stroke();
     // 标签
     ctx.fillStyle = '#6c6c80';
-    ctx.fillText(val.toFixed(0) + 'kg', padLeft - 6, y);
+    ctx.fillText(val.toFixed(0) + getGlobalUnit(), padLeft - 6, y);
   }
 
   // X轴标签（日期）
@@ -2819,7 +2909,7 @@ function drawTrendChart(history) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillStyle = '#fdcb6e';
-      ctx.fillText(h.maxWeight + 'kg', x, y - 10);
+      ctx.fillText(h.maxWeight + getGlobalUnit(), x, y - 10);
     }
   });
 }
@@ -2828,6 +2918,7 @@ function renderTrendStats(history) {
   const el = document.getElementById('trendStatsContent');
   if (history.length === 0) return;
 
+  const gu = getGlobalUnit();
   const maxWeight = Math.max(...history.map(h => h.maxWeight));
   const avgVol = history.reduce((s, h) => s + h.totalVol, 0) / history.length;
   const totalCount = history.length;
@@ -2863,7 +2954,7 @@ function renderTrendStats(history) {
         <div class="ts-icon">🏆</div>
         <div class="ts-info">
           <div class="ts-label">历史最大重量</div>
-          <div class="ts-value">${maxWeight}kg</div>
+          <div class="ts-value">${maxWeight}${gu}</div>
         </div>
       </div>
       <div class="trend-stat-card">
@@ -2894,13 +2985,13 @@ function renderTrendStats(history) {
         ${history.map((h, i) => {
           const prevW = i > 0 ? history[i-1].maxWeight : null;
           const diff = prevW !== null ? h.maxWeight - prevW : 0;
-          const diffStr = diff > 0 ? `<span style="color:var(--green);">+${diff}kg</span>` :
-                          diff < 0 ? `<span style="color:var(--red);">${diff}kg</span>` :
+          const diffStr = diff > 0 ? `<span style="color:var(--green);">+${Math.round(diff*10)/10}${gu}</span>` :
+                          diff < 0 ? `<span style="color:var(--red);">${Math.round(diff*10)/10}${gu}</span>` :
                           `<span style="color:var(--text3);">持平</span>`;
           return `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:13px;">
               <span style="color:var(--text2);">${h.date}</span>
-              <span style="font-weight:700;color:var(--accent2);">${h.maxWeight}kg</span>
+              <span style="font-weight:700;color:var(--accent2);">${Math.round(h.maxWeight*10)/10}${gu}</span>
               <span style="font-size:12px;">${i > 0 ? diffStr : '<span style="color:var(--text3);">-</span>'}</span>
             </div>
           `;
@@ -2951,6 +3042,26 @@ function renderSettings() {
     `;
   }
   listEl.innerHTML = html || '<div class="empty-state"><p>暂无动作</p></div>';
+
+  // 更新单位按钮状态
+  updateUnitButtons();
+}
+
+function updateUnitButtons() {
+  const gu = getGlobalUnit();
+  const kgBtn = document.getElementById('unitBtnKg');
+  const lbsBtn = document.getElementById('unitBtnLbs');
+  if (kgBtn && lbsBtn) {
+    kgBtn.className = 'btn btn-sm btn-full ' + (gu === 'kg' ? 'btn-primary' : 'btn-outline');
+    lbsBtn.className = 'btn btn-sm btn-full ' + (gu === 'lbs' ? 'btn-primary' : 'btn-outline');
+  }
+}
+
+function changeGlobalUnit(unit) {
+  setGlobalUnit(unit);
+  updateUnitButtons();
+  // 刷新记录页统计（如果可见）
+  renderHistory();
 }
 
 function toggleActionGroup(headerEl) {
@@ -3059,6 +3170,7 @@ function sendEmailBackup() {
   const data = loadData();
   const lines = [];
   const divider = '──────────────────────────';
+  const emailGu = getGlobalUnit();
 
   lines.push('💪 FitLog 训练数据备份');
   lines.push('备份时间：' + new Date().toLocaleString('zh-CN'));
@@ -3092,15 +3204,15 @@ function sendEmailBackup() {
           ex.sets.forEach(st => {
             let setInfo = `     第${st.setNum}组：`;
             const parts = [];
-            if (st.weight) parts.push(st.weight + 'kg');
+            if (st.weight) parts.push(Math.round(convertWeight(st.weight, ex.unit||'kg', emailGu)*10)/10 + emailGu);
             if (st.reps) parts.push(st.reps + '次');
             if (st.note) parts.push(st.note);
             setInfo += parts.join(' × ') || '未记录';
             lines.push(setInfo);
           });
-          const totalVol = ex.sets.reduce((sum, st) => sum + (st.weight || 0) * (st.reps || 0), 0);
+          const totalVol = ex.sets.reduce((sum, st) => sum + convertWeight(st.weight||0, ex.unit||'kg', emailGu) * (st.reps||0), 0);
           if (totalVol > 0) {
-            lines.push(`     训练量：${Math.round(totalVol)} kg`);
+            lines.push(`     训练量：${Math.round(totalVol)} ${emailGu}`);
           }
         }
       });
